@@ -20,12 +20,13 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
 #include "usb_device.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "ff.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -56,7 +57,83 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void fs_test(void)
+{
+	FATFS fs;           /* Filesystem object */
+    FIL fil;            /* File object */
+    FRESULT res;  /* API result code */
+    UINT bw;            /* Bytes written */
+    uint8_t work[1024]; /* Work area (larger is better for processing time) */
+    uint8_t mm[50];
+    uint8_t wtext[] = "\r\n测试数据！！！"; //
+    UINT i;
 
+	//uart_printf("文件系统测试开始:\r\n");
+	/* 格式化文件系统 */
+	res = f_mkfs("0:", FM_ANY, 0, work, sizeof(work));//"0:"是卷标，来自于 #define SPI_FLASH		0
+	if (res)
+	{
+		//uart_printf("文件系统格式化失败.\r\n");
+		return ;
+	}
+	else
+	{
+		//uart_printf("文件系统格式化成功.\r\n");
+	}
+	/* 挂载文件系统 */
+	res = f_mount(&fs, "0:", 0);
+	if (res)
+	{
+		//uart_printf("文件系统挂载失败.\r\n");
+	}
+	else
+	{
+		//uart_printf("文件系统挂载成功.\r\n");
+	}
+	/* Create a file as new */
+	res = f_open(&fil, "0:/123.txt", FA_CREATE_NEW|FA_WRITE|FA_READ);
+	if (res)
+	{
+		//uart_printf("打开文件失败.\r\n");
+	}
+	else
+	{
+		//uart_printf("打开文件成功.\r\n");
+	}
+	/* Write a message */
+	res = f_write(&fil, "Hello,World!", 12, &bw);
+	res = f_write(&fil, wtext, sizeof(wtext), (void *)&bw);
+	//uart_printf("res write:%d\r\n",res);
+	if (bw == 12)
+	{
+		//uart_printf("写文件成功!\r\n");
+	}
+	else
+	{
+		//uart_printf("写文件失败!\r\n");
+	}
+	res = f_size(&fil);
+	//uart_printf("文件大小:%d Bytes.\r\n",res);
+	memset(mm,0x0,50);
+	f_lseek(&fil,0);
+	res = f_read(&fil,mm,12,&i);
+	if (res == FR_OK)
+	{
+		//uart_printf("读文件成功!\r\n");
+		//uart_printf("读到数据长度:%d Bytes.\r\n",i);
+	}
+	else
+	{
+		//uart_printf("读文件失败!\r\n");
+	}
+	//uart_printf("读到如下数据:\r\n");
+	//buff_print((char *)mm,12);
+	/* Close the file */
+	f_close(&fil);
+	/*卸载文件系统*/
+	f_mount(0, "0:", 0);
+	//uart_printf("文件系统测试完毕.\r\n");
+}
 /* USER CODE END 0 */
 
 /**
@@ -66,7 +143,15 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+//	FATFS fs;                 //工作空间
+//	FIL fil;                  // 文件项目
+//	uint32_t byteswritten;    // 写文件计数
+//	uint32_t bytesread;       // 读文件计数
+//	uint8_t wtext[] = "我就是那张SD卡，8G那张！！"; // 写的内容
+//	uint8_t rtext[1024];             // 读取的buff
+//	char filename[] = "0:/GPSSave.txt"; // 文件名
+//	uint8_t retSRAM;
+//	char work[1024];
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -87,9 +172,54 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USB_DEVICE_Init();
+  //MX_USB_DEVICE_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
+//	/* 格式化文件系统 */
+//    retSRAM = f_mkfs("0:", FM_ANY, 0, work, sizeof(work));//"0:"是卷标，来自于 #define SPI_FLASH		0
+//	if (retSRAM)
+//	{
+//		//uart_printf("文件系统格式化失败.\r\n");
+//		//return ;
+//	}
+//	else
+//	{
+//		//uart_printf("文件系统格式化成功.\r\n");
+//	}
+//  /*-1- 挂载文件系统*/
+//  retSRAM = f_mount(&fs, "0:", 0);
+//  if(retSRAM)
+//  {
+//      //printf(" mount error : %d \r\n",retSD);
+//      Error_Handler();
+//  }
+//  /*-2-创建新的文件并写入数据*/
+//  retSRAM = f_open(&fil, filename, FA_CREATE_ALWAYS | FA_WRITE);		//打开文件，权限包括创建、写（如果没有该文件，会创建该文件）
+////  if(retSD)															//返回值不为0（出现问题）
+////      printf(" open file error : %d\r\n",retSD);						//打印问题代码
+////  else
+////      printf(" open file sucess!!! \r\n");
+//  /*-3- 在txt文件中写入数据*/
+//  retSRAM = f_write(&fil, wtext, sizeof(wtext), (void *)&byteswritten);	//在文件内写入wtext内的内容
+////  if(retSD)															//返回值不为0（出现问题）
+////      printf(" write file error : %d\r\n",retSD);						//打印问题代码
+////  else
+////  {
+////      printf(" write file sucess!!! \r\n");
+////      printf(" write Data : %s\r\n",wtext);							//打印写入的内容
+////  }
+//
+//  /*-4- 关闭txt文件*/
+//  retSRAM = f_close(&fil);												//关闭该文件
+////  if(retSD)															//返回值不为0（出现问题）
+////      printf(" close error : %d\r\n",retSD);							//打印问题代码
+////  else
+////      printf(" close sucess!!! \r\n");
+//  /*卸载文件系统*/
+//  	f_mount(0, "0:", 0);
+  	fs_test();
 
+  	MX_USB_DEVICE_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
