@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "usbd_cdc.h"
+//#include "usbd_cdc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -56,8 +56,10 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-unsigned char cdc_rx_buffer[1024];
-int cdc_rx_flag = 0;
+extern uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
+//unsigned char cdc_rx_buffer[1024];
+//int cdc_rx_flag = 0;
+extern int rx_buf_get(void);
 /* USER CODE END 0 */
 
 /**
@@ -67,7 +69,9 @@ int cdc_rx_flag = 0;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	static uint8_t send_buf[60];
+    uint16_t len=0;
+    int ch=-1;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -97,14 +101,24 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    if(cdc_rx_flag > 0)
-    {
-      USBD_LL_Transmit(&hUsbDeviceFS,
-                       CDC_IN_EP,
-                       cdc_rx_buffer,
-                       cdc_rx_flag);
-      cdc_rx_flag = 0;
-    }
+//    if(cdc_rx_flag > 0)
+//    {
+//      USBD_LL_Transmit(&hUsbDeviceFS,
+//                       CDC_IN_EP,
+//                       cdc_rx_buffer,
+//                       cdc_rx_flag);
+//      cdc_rx_flag = 0;
+//    }
+      for(len=0; len<sizeof(send_buf); len++)
+      {
+          ch = rx_buf_get();
+          if(ch<0) break;
+          send_buf[len] = ch;
+      }
+      if(len>0)
+      {
+          CDC_Transmit_FS(send_buf, len);
+      }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

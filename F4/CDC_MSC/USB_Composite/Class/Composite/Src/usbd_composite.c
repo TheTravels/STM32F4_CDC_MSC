@@ -1,6 +1,6 @@
 /**
   ******************************************************************************
-  * @file    usbd_MC.c
+  * @file    usbd_composite.c
   * @author  MCD Application Team
   * @version V2.4.2
   * @date    11-December-2015
@@ -39,9 +39,9 @@
   *
   ******************************************************************************
   */ 
-#if 1
+
 /* Includes ------------------------------------------------------------------*/
-#include "usbd_mc.h"
+#include "usbd_composite.h"
 #include "usbd_def.h"
 #include "usbd_msc.h"
 #include "usbd_cdc.h"
@@ -684,7 +684,7 @@ static void MC_Switch_CDC(USBD_HandleTypeDef *pdev)
   USBD_CDC_RegisterInterface(pdev, &USBD_Interface_fops_FS);
   pdev->pClassData = &cdc_handle;
 }
-#endif
+
 /**
   * @}
   */ 
