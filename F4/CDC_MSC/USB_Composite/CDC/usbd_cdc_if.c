@@ -79,7 +79,30 @@
   */
 
 /* USER CODE BEGIN PRIVATE_MACRO */
+static uint32_t rx_head=0, rx_tail=0;
+static uint8_t rx_buf[4096];
 
+static inline void rx_buf_put(uint8_t b)
+{
+	unsigned next = (rx_head + 1) % sizeof(rx_buf);
+
+	if (next != rx_tail) {
+		rx_buf[rx_head] = b;
+		rx_head = next;
+	}
+}
+
+int rx_buf_get(void)
+{
+	int	ret = -1;
+
+	if (rx_tail != rx_head) {
+		ret = rx_buf[rx_tail];
+		rx_tail = (rx_tail + 1) % sizeof(rx_buf);
+	}
+
+	return ret;
+}
 /* USER CODE END PRIVATE_MACRO */
 
 /**
@@ -265,15 +288,23 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
-  extern unsigned char cdc_rx_buffer[1024];
-  extern int cdc_rx_flag;
-  for(int i = 0; i < *Len; i++)
-  {
-    cdc_rx_buffer[i] = Buf[i];
-  }
-  cdc_rx_flag = *Len;
+	//extern void rx_buf_put(uint8_t b);
+	  uint32_t i=0;
+	  uint32_t len=0;
+//  extern unsigned char cdc_rx_buffer[1024];
+//  extern int cdc_rx_flag;
+//  for(int i = 0; i < *Len; i++)
+//  {
+//    cdc_rx_buffer[i] = Buf[i];
+//  }
+//  cdc_rx_flag = *Len;
   USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
   USBD_CDC_ReceivePacket(&hUsbDeviceFS);
+  //CDC_Transmit_FS(Buf, Len[0]);
+  len=Len[0];
+  for (i = 0; i < len; i++) {
+		rx_buf_put(Buf[i]);
+	}
   return (USBD_OK);
   /* USER CODE END 6 */
 }
