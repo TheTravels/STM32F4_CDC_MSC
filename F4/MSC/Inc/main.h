@@ -37,7 +37,7 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+#define _ccm __attribute__((unused, section(".ccm")))
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

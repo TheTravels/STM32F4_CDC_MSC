@@ -51,7 +51,7 @@
 #include "usbd_storage_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-
+#include "SRAM_diskio.h"
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -93,7 +93,7 @@
 
 #define STORAGE_LUN_NBR                  1
 //#define STORAGE_BLK_NBR                  0x10000
-//#define STORAGE_BLK_SIZ                  0x200
+#define STORAGE_BLK_SIZ                  0x200
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
 
@@ -181,8 +181,6 @@ static int8_t STORAGE_GetMaxLun_FS(void);
 
 /* USER CODE END PRIVATE_FUNCTIONS_DECLARATION */
 
-static char buffer[1024*40];
-
 /**
   * @}
   */
@@ -222,17 +220,8 @@ int8_t STORAGE_Init_FS(uint8_t lun)
 int8_t STORAGE_GetCapacity_FS(uint8_t lun, uint32_t *block_num, uint16_t *block_size)
 {
   /* USER CODE BEGIN 3 */
-#if 0
-  HAL_SD_CardInfoTypeDef info;
-  
-  HAL_SD_GetCardInfo(&hsd, &info);
-  
-  *block_num = info.LogBlockNbr - 1;
-  *block_size = info.LogBlockSize;
-#else
-  *block_num = sizeof(buffer)/512;
-  *block_size = 512;
-#endif
+  *block_num = sram_disk_size/STORAGE_BLK_SIZ;
+  *block_size = STORAGE_BLK_SIZ;
   return (USBD_OK);
   /* USER CODE END 3 */
 }
@@ -277,14 +266,7 @@ int8_t STORAGE_IsWriteProtected_FS(uint8_t lun)
 int8_t STORAGE_Read_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len)
 {
   /* USER CODE BEGIN 6 */
-#if 0
-  HAL_SD_ReadBlocks(&hsd, (uint8_t *)buf, blk_addr, blk_len, 1000);
-  
-  while(HAL_SD_GetCardState(&hsd) != HAL_SD_CARD_TRANSFER)
-    ;
-#else
-  memcpy(buf, &buffer[blk_addr*512], blk_len*512);
-#endif
+  sram_disk_read(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
   return (USBD_OK);
   /* USER CODE END 6 */
 }
@@ -298,14 +280,7 @@ int8_t STORAGE_Read_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t bl
 int8_t STORAGE_Write_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len)
 {
   /* USER CODE BEGIN 7 */
-#if 0
-  HAL_SD_WriteBlocks(&hsd, (uint8_t *)buf, blk_addr, blk_len, 1000);
-  
-  while(HAL_SD_GetCardState(&hsd) != HAL_SD_CARD_TRANSFER)
-    ;
-#else
-  memcpy(&buffer[blk_addr*512], buf, blk_len*512);
-#endif
+  sram_disk_write(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
   return (USBD_OK);
   /* USER CODE END 7 */
 }

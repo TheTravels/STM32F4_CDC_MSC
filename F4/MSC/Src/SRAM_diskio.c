@@ -28,6 +28,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "ff_gen_drv.h"
 #include "SRAM_diskio.h"
+#include "main.h"
 #include <string.h>
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,9 +53,15 @@
 /* USER CODE BEGIN disableSDInit */
 /* #define DISABLE_SRAM_INIT */
 
+#if 0
 static char sram_disk[1024*96];
 const uint32_t sram_disk_size = sizeof(sram_disk);
-
+void sram_disk_init(void)
+{
+  /* USER CODE BEGIN 6 */
+  memset(sram_disk, 0, sram_disk_size);
+  /* USER CODE END 6 */
+}
 uint16_t sram_disk_read(uint8_t *const buf, const uint32_t _addr, const uint16_t _len)
 {
   /* USER CODE BEGIN 6 */
@@ -69,6 +76,66 @@ uint16_t sram_disk_write(const uint8_t *const buf, const uint32_t _addr, const u
   return _len;
   /* USER CODE END 7 */
 }
+#else
+static char _ccm ccm_disk[1024*64];  // 0-64K
+static char sram_disk[1024*32];      // 64-96K
+const uint32_t ccm_size = sizeof(ccm_disk);
+const uint32_t sram_size = sizeof(sram_disk);
+const uint32_t sram_disk_size = sizeof(ccm_disk)+sizeof(sram_disk);
+void sram_disk_init(void)
+{
+  /* USER CODE BEGIN 6 */
+  memset(ccm_disk, 0, ccm_size);
+  memset(sram_disk, 0, sram_size);
+  /* USER CODE END 6 */
+}
+uint16_t sram_disk_read(uint8_t *const buf, const uint32_t _addr, const uint16_t _len)
+{
+  /* USER CODE BEGIN 6 */
+  // sram
+  if(ccm_size<=_addr) memcpy(buf, &sram_disk[_addr-ccm_size], _len);
+  else
+  {
+	  uint32_t len;
+	  uint32_t offset;
+	  len = ccm_size - _addr;
+	  // ccm
+	  if(len>=_len) memcpy(buf, &ccm_disk[_addr], _len);
+	  else // sram && ccm
+	  {
+		  offset = _addr-ccm_size;
+		  if(offset>=sram_size) return 0;
+		  memcpy(buf, &ccm_disk[_addr], len);
+		  memcpy(&buf[len], &sram_disk[offset], _len-len);
+	  }
+  }
+  return _len;
+  /* USER CODE END 6 */
+}
+uint16_t sram_disk_write(const uint8_t *const buf, const uint32_t _addr, const uint16_t _len)
+{
+  /* USER CODE BEGIN 7 */
+  // sram
+  if(ccm_size<=_addr) memcpy(&sram_disk[_addr-ccm_size], buf, _len);
+  else
+  {
+	  uint32_t len;
+	  uint32_t offset;
+	  len = ccm_size - _addr;
+	  // ccm
+	  if(len>=_len) memcpy(&ccm_disk[_addr], buf, _len);
+	  else // sram && ccm
+	  {
+		  offset = _addr-ccm_size;
+		  if(offset>=sram_size) return 0;
+		  memcpy(&ccm_disk[_addr], buf, len);
+		  memcpy(&sram_disk[offset], &buf[len], _len-len);
+	  }
+  }
+  return _len;
+  /* USER CODE END 7 */
+}
+#endif
 
 /* USER CODE END disableSDInit */
 
@@ -129,7 +196,8 @@ DSTATUS SRAM_initialize(BYTE lun)
 {
   Stat = STA_NOINIT;
 
-  memset(sram_disk, 0, sram_disk_size);
+  //memset(sram_disk, 0, sram_disk_size);
+  sram_disk_init();
   Stat = SRAM_CheckStatus(lun);
 
   return Stat;
@@ -169,7 +237,8 @@ DRESULT SRAM_read(BYTE lun, BYTE *buff, DWORD sector, UINT count)
 //    while(BSP_SRAM_GetCardState()!= MSRAM_OK)
 //    {
 //    }
-	  memcpy(buff, &sram_disk[sector*SRAM_DEFAULT_BLOCK_SIZE], count*SRAM_DEFAULT_BLOCK_SIZE);
+	  //memcpy(buff, &sram_disk[sector*SRAM_DEFAULT_BLOCK_SIZE], count*SRAM_DEFAULT_BLOCK_SIZE);
+	  sram_disk_read(buff, sector*SRAM_DEFAULT_BLOCK_SIZE, count*SRAM_DEFAULT_BLOCK_SIZE);
     res = RES_OK;
   }
 
@@ -201,7 +270,8 @@ DRESULT SRAM_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
 //    while(BSP_SRAM_GetCardState() != MSRAM_OK)
 //    {
 //    }
-	  memcpy(&sram_disk[sector*SRAM_DEFAULT_BLOCK_SIZE], buff, count*SRAM_DEFAULT_BLOCK_SIZE);
+	  //memcpy(&sram_disk[sector*SRAM_DEFAULT_BLOCK_SIZE], buff, count*SRAM_DEFAULT_BLOCK_SIZE);
+	  sram_disk_write(buff, sector*SRAM_DEFAULT_BLOCK_SIZE, count*SRAM_DEFAULT_BLOCK_SIZE);
     res = RES_OK;
   }
 

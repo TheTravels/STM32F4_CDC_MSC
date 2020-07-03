@@ -50,6 +50,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/CDC_MSC/USB_Composite/Class/MyClass/Inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/CDC_MSC/USB_Composite/Class/MSC/Inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/CDC_MSC/USB_Composite/MSC}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/CDC_MSC/Middlewares/Third_Party/FatFs/src}&quot;"/>
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.979308083" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>
 							</tool>
