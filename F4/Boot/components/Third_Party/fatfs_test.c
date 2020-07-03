@@ -17,6 +17,7 @@
   */
 
 #include "fatfs.h"
+#include <string.h>
 
 void fs_test(void)
 {

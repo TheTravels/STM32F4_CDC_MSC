@@ -30,7 +30,8 @@
 //#include "usbd_cdc.h"
 #include "fatfs.h"
 #include "ff.h"
-#include "sha1.h"
+#include "sha1/sha1.h"
+#include "Periphs/uart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -102,9 +103,9 @@ void vbus_poll(const uint32_t _tick)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	static uint8_t send_buf[60];
-    uint16_t len=0;
-    int ch=-1;
+	static uint8_t send_buf[256];
+    int len=0;
+    //int ch=-1;
     led_tick = 0;
   /* USER CODE END 1 */
 
@@ -121,17 +122,20 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  uartx_queue_init();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USB_DEVICE_Init();
+  //MX_USB_DEVICE_Init();
   MX_SDIO_SD_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
+  //USART1_Init(115200);
+  //USART2_Init(115200);
+  //USART3_Init(115200);
   MX_FATFS_Init();
   fs_test();
   //MX_USB_DEVICE_Init();
@@ -139,6 +143,7 @@ int main(void)
   LL_GPIO_ResetOutputPin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
   led_tick = HAL_GetTick() + 200;
   HAL_Delay(200);  // delay, check VBUS
+  app_debug("[%s--%d] system start!\r\n", __func__, __LINE__);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -163,7 +168,9 @@ int main(void)
 		  vbus_connect = 0;
 		  USBD_DeInit(&hUsbDeviceFS);
 	  }
-      for(len=0; len<sizeof(send_buf); len++)
+	  memset(send_buf, 0, sizeof(send_buf));
+#if 0
+      for(len=0; len<60; len++)
       {
           ch = rx_buf_get();
           if(ch<0) break;
@@ -172,6 +179,19 @@ int main(void)
       if(len>0)
       {
           CDC_Transmit_FS(send_buf, len);
+      }
+#else
+      len = cdc_read(send_buf, sizeof(send_buf));
+      if(len>0)
+      {
+    	  cdc_send(send_buf, len);
+      }
+#endif
+      memset(send_buf, 0, sizeof(send_buf));
+      len = uart3_read(send_buf, sizeof(send_buf));
+      if(len>0)
+      {
+    	  uart3_send(send_buf, len);
       }
     /* USER CODE END WHILE */
 

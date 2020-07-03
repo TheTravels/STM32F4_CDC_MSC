@@ -23,6 +23,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "Periphs/uart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -204,7 +205,29 @@ void SysTick_Handler(void)
 void USART1_IRQHandler(void)
 {
   /* USER CODE BEGIN USART1_IRQn 0 */
-
+	  if(LL_USART_IsActiveFlag_RXNE(USART1) && LL_USART_IsEnabledIT_RXNE(USART1))
+	  {
+	    /* RXNE flag will be cleared by reading of DR register (done in call) */
+	    /* Call function in charge of handling Character reception */
+	    //USART_CharReception_Callback();
+		  add_queue_uart1(LL_USART_ReceiveData8(USART1));
+	  }
+	  else
+	  {
+	    /* Call Error function */
+	    //Error_Callback();
+			__IO uint32_t sr_reg;
+			/* Error handling example :
+				- Read USART SR register to identify flag that leads to IT raising
+				- Perform corresponding error handling treatment according to flag
+			*/
+			sr_reg = LL_USART_ReadReg(USART1, SR);
+			if (sr_reg & LL_USART_SR_NE)
+			{
+				/* case Noise Error flag is raised : Clear NF Flag */
+				LL_USART_ClearFlag_NE(USART1);
+			}
+	  }
   /* USER CODE END USART1_IRQn 0 */
   /* USER CODE BEGIN USART1_IRQn 1 */
 
@@ -217,7 +240,29 @@ void USART1_IRQHandler(void)
 void USART2_IRQHandler(void)
 {
   /* USER CODE BEGIN USART2_IRQn 0 */
-
+	  if(LL_USART_IsActiveFlag_RXNE(USART2) && LL_USART_IsEnabledIT_RXNE(USART2))
+	  {
+	    /* RXNE flag will be cleared by reading of DR register (done in call) */
+	    /* Call function in charge of handling Character reception */
+	    //USART_CharReception_Callback();
+		  add_queue_uart2(LL_USART_ReceiveData8(USART2));
+	  }
+	  else
+	  {
+	    /* Call Error function */
+	    //Error_Callback();
+			__IO uint32_t sr_reg;
+			/* Error handling example :
+				- Read USART SR register to identify flag that leads to IT raising
+				- Perform corresponding error handling treatment according to flag
+			*/
+			sr_reg = LL_USART_ReadReg(USART2, SR);
+			if (sr_reg & LL_USART_SR_NE)
+			{
+				/* case Noise Error flag is raised : Clear NF Flag */
+				LL_USART_ClearFlag_NE(USART2);
+			}
+	  }
   /* USER CODE END USART2_IRQn 0 */
   /* USER CODE BEGIN USART2_IRQn 1 */
 
@@ -230,7 +275,29 @@ void USART2_IRQHandler(void)
 void USART3_IRQHandler(void)
 {
   /* USER CODE BEGIN USART3_IRQn 0 */
-
+	  if(LL_USART_IsActiveFlag_RXNE(USART3) && LL_USART_IsEnabledIT_RXNE(USART3))
+	  {
+	    /* RXNE flag will be cleared by reading of DR register (done in call) */
+	    /* Call function in charge of handling Character reception */
+	    //USART_CharReception_Callback();
+		  add_queue_uart3(LL_USART_ReceiveData8(USART3));
+	  }
+	  else
+	  {
+	    /* Call Error function */
+	    //Error_Callback();
+			__IO uint32_t sr_reg;
+			/* Error handling example :
+				- Read USART SR register to identify flag that leads to IT raising
+				- Perform corresponding error handling treatment according to flag
+			*/
+			sr_reg = LL_USART_ReadReg(USART3, SR);
+			if (sr_reg & LL_USART_SR_NE)
+			{
+				/* case Noise Error flag is raised : Clear NF Flag */
+				LL_USART_ClearFlag_NE(USART3);
+			}
+	  }
   /* USER CODE END USART3_IRQn 0 */
   /* USER CODE BEGIN USART3_IRQn 1 */
 

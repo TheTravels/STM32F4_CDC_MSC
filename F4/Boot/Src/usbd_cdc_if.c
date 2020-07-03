@@ -23,7 +23,7 @@
 #include "usbd_cdc_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-
+#include "Periphs/uart.h"
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -79,6 +79,7 @@
   */
 
 /* USER CODE BEGIN PRIVATE_MACRO */
+#if 0
 static uint32_t rx_head=0, rx_tail=0;
 static uint8_t rx_buf[4096];
 
@@ -103,6 +104,7 @@ int rx_buf_get(void)
 
 	return ret;
 }
+#endif
 /* USER CODE END PRIVATE_MACRO */
 
 /**
@@ -303,7 +305,8 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
   //CDC_Transmit_FS(Buf, Len[0]);
   len=Len[0];
   for (i = 0; i < len; i++) {
-		rx_buf_put(Buf[i]);
+		//rx_buf_put(Buf[i]);
+	    add_queue_cdc(Buf[i]);
 	}
   return (USBD_OK);
   /* USER CODE END 6 */
