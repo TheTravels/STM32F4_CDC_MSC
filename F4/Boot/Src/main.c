@@ -32,6 +32,7 @@
 #include "ff.h"
 #include "sha1/sha1.h"
 #include "Periphs/uart.h"
+#include "Periphs/Flash.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -105,6 +106,8 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	static uint8_t send_buf[256];
     int len=0;
+//    int ret = 0;
+//    uint32_t data[3]={0x123456AB, 0x12CD4568, 0x1256EF34};
     //int ch=-1;
     led_tick = 0;
   /* USER CODE END 1 */
@@ -144,6 +147,14 @@ int main(void)
   led_tick = HAL_GetTick() + 200;
   HAL_Delay(200);  // delay, check VBUS
   app_debug("[%s--%d] system start!\r\n", __func__, __LINE__);
+//  ret = FLASH_Erase(0x08020000, 0x08030000);
+//  app_debug("[%s--%d] FLASH_Erase[%d]\r\n", __func__, __LINE__, ret);
+//  ret = Flash_Write(0x08010000, data, 3);
+//  app_debug("[%s--%d] FLASH_write<%d>[%08X %08X %08X]\r\n", __func__, __LINE__, ret, data[0], data[1], data[2]);
+//  memset(data, 0, sizeof(data));
+//  ret = Flash_Read(0x08010000, data, 3);
+//  app_debug("[%s--%d] FLASH_read<%d>[%08X %08X %08X]\r\n", __func__, __LINE__, ret, data[0], data[1], data[2]);
+  Flash_Test(0x08010000, 0x08020000);
   /* USER CODE END 2 */
 
   /* Infinite loop */
