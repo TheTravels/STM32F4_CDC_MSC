@@ -28,7 +28,7 @@ FATFS USERFatFS;    /* File system object for USER logical drive */
 FIL USERFile;       /* File object for USER */
 
 /* USER CODE BEGIN Variables */
-#include "SRAM_diskio.h"
+#include "Periphs/SRAM_diskio.h"
 uint8_t retSRAM;    /* Return value for SRAM */
 char SRAMPath[4];   /* SRAM logical drive path */
 FATFS SRAMFatFS;    /* File system object for SRAM logical drive */
@@ -44,7 +44,7 @@ void MX_FATFS_Init(void)
   /*## FatFS: Link the SD driver ###########################*/
   retSD = FATFS_LinkDriver(&SD_Driver, SDPath);
   /*## FatFS: Link the USER driver ###########################*/
-  //retUSER = FATFS_LinkDriver(&USER_Driver, USERPath);
+  retUSER = FATFS_LinkDriver(&USER_Driver, USERPath);
 
   /* USER CODE BEGIN Init */
   /* additional user code for init */     

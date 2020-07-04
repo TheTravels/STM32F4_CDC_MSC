@@ -51,7 +51,9 @@
 #include "usbd_storage_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-#include "SRAM_diskio.h"
+#include "Periphs/SRAM_diskio.h"
+#include "sd_diskio.h"
+#include "Periphs/uart.h"
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -91,7 +93,7 @@
   * @{
   */
 
-#define STORAGE_LUN_NBR                  1
+#define STORAGE_LUN_NBR                  2
 //#define STORAGE_BLK_NBR                  0x10000
 #define STORAGE_BLK_SIZ                  0x200
 
@@ -157,7 +159,8 @@ const int8_t STORAGE_Inquirydata_FS[] = {/* 36 */
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
-
+#define   LUN_SRAM          0
+#define   LUN_SDIO          1
 /* USER CODE END EXPORTED_VARIABLES */
 
 /**
@@ -220,8 +223,35 @@ int8_t STORAGE_Init_FS(uint8_t lun)
 int8_t STORAGE_GetCapacity_FS(uint8_t lun, uint32_t *block_num, uint16_t *block_size)
 {
   /* USER CODE BEGIN 3 */
+#if (1==STORAGE_LUN_NBR)
   *block_num = sram_disk_size/STORAGE_BLK_SIZ;
   *block_size = STORAGE_BLK_SIZ;
+#else
+  HAL_SD_CardInfoTypeDef CardInfo;
+	switch(lun)
+	{
+	case LUN_SRAM:
+		  *block_num = sram_disk_size/STORAGE_BLK_SIZ;
+		  *block_size = STORAGE_BLK_SIZ;
+		  app_debug("[%s--%d] sram_disk_size :%d block_num:%d \r\n", __func__, __LINE__, sram_disk_size, *block_num);
+		break;
+	case LUN_SDIO:
+		BSP_SD_GetCardInfo(&CardInfo);
+		  *block_num = CardInfo.LogBlockNbr-1;
+		  *block_size = CardInfo.LogBlockSize;
+		break;
+	default:
+		  *block_num = 0;//sram_disk_size/STORAGE_BLK_SIZ-10;
+		  *block_size = STORAGE_BLK_SIZ;
+		break;
+	}
+//  HAL_SD_CardInfoTypeDef info;
+//
+//  HAL_SD_GetCardInfo(&hsd, &info);
+//
+//  *block_num = info.LogBlockNbr - 1;
+//  *block_size = info.LogBlockSize;
+#endif
   return (USBD_OK);
   /* USER CODE END 3 */
 }
@@ -234,15 +264,28 @@ int8_t STORAGE_GetCapacity_FS(uint8_t lun, uint32_t *block_num, uint16_t *block_
 int8_t STORAGE_IsReady_FS(uint8_t lun)
 {
   /* USER CODE BEGIN 4 */
-  /*if(HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER)
-  {
-    return (USBD_OK);
-  }
-  else
-  {
-    return (USBD_FAIL);
-  }*/
-    return (USBD_OK);
+#if (1==STORAGE_LUN_NBR)
+	return (USBD_OK);
+#else
+	int8_t ret = USBD_FAIL;
+	switch(lun)
+	{
+	case LUN_SRAM:
+		ret = USBD_OK;
+		break;
+	case LUN_SDIO:
+		  //if(HAL_SD_GetCardState(&hsd) == HAL_SD_CARD_TRANSFER)
+		if(STA_NOINIT!=SD_status(0))
+		  {
+			  ret = USBD_OK;
+		  }
+		break;
+	default:
+		//ret = USBD_OK;
+		break;
+	}
+	return ret;
+#endif
   /* USER CODE END 4 */
 }
 
@@ -266,7 +309,27 @@ int8_t STORAGE_IsWriteProtected_FS(uint8_t lun)
 int8_t STORAGE_Read_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len)
 {
   /* USER CODE BEGIN 6 */
-  sram_disk_read(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+#if (1==STORAGE_LUN_NBR)
+	sram_disk_read(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+#else
+	switch(lun)
+	{
+	case LUN_SRAM:
+		sram_disk_read(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+		break;
+	case LUN_SDIO:
+		SD_read(0, buf, blk_addr, blk_len);
+		break;
+	default:
+		//sram_disk_read(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+		break;
+	}
+	  //HAL_SD_ReadBlocks(&hsd, (uint8_t *)buf, blk_addr, blk_len, 1000);
+
+	  //while(HAL_SD_GetCardState(&hsd) != HAL_SD_CARD_TRANSFER)
+	   // ;
+#endif
+
   return (USBD_OK);
   /* USER CODE END 6 */
 }
@@ -280,7 +343,26 @@ int8_t STORAGE_Read_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t bl
 int8_t STORAGE_Write_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len)
 {
   /* USER CODE BEGIN 7 */
+#if (1==STORAGE_LUN_NBR)
   sram_disk_write(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+#else
+	switch(lun)
+	{
+	case LUN_SRAM:
+		sram_disk_write(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+		break;
+	case LUN_SDIO:
+		SD_write(0, buf, blk_addr, blk_len);
+		break;
+	default:
+		//sram_disk_write(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+		break;
+	}
+	  //HAL_SD_WriteBlocks(&hsd, (uint8_t *)buf, blk_addr, blk_len, 1000);
+
+	  //while(HAL_SD_GetCardState(&hsd) != HAL_SD_CARD_TRANSFER)
+	    //;
+#endif
   return (USBD_OK);
   /* USER CODE END 7 */
 }

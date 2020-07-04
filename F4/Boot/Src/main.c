@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
 #include "sdio.h"
 #include "usart.h"
 #include "usb_device.h"
@@ -68,6 +69,8 @@ extern uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
 //int cdc_rx_flag = 0;
 extern int rx_buf_get(void);
 extern void fs_test(void);
+extern void fs_test_sdio(void);
+
 static uint8_t vbus_high_count=0;
 static uint8_t vbus_low_count=0;
 static uint8_t vbus_connect=0;
@@ -95,6 +98,13 @@ void vbus_poll(const uint32_t _tick)
 	}
 }
 
+uint8_t SD_GetCardInfo(HAL_SD_CardInfoTypeDef *cardinfo)
+{
+    uint8_t sta;
+    sta=HAL_SD_GetCardInfo(&hsd,cardinfo);
+    return sta;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -106,6 +116,7 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	static uint8_t send_buf[256];
     int len=0;
+    HAL_SD_CardInfoTypeDef cardinfo;
 //    int ret = 0;
 //    uint32_t data[3]={0x123456AB, 0x12CD4568, 0x1256EF34};
     //int ch=-1;
@@ -135,12 +146,15 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_USART3_UART_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
   //USART1_Init(115200);
   //USART2_Init(115200);
   //USART3_Init(115200);
-  MX_FATFS_Init();
+  //MX_FATFS_Init();
+  SD_initialize(0);
   fs_test();
+  //fs_test_sdio();
   //MX_USB_DEVICE_Init();
   //SHA1(NULL, "Hello", 5); // -Os Optimize code, add code 4K
   LL_GPIO_ResetOutputPin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
@@ -155,6 +169,16 @@ int main(void)
 //  ret = Flash_Read(0x08010000, data, 3);
 //  app_debug("[%s--%d] FLASH_read<%d>[%08X %08X %08X]\r\n", __func__, __LINE__, ret, data[0], data[1], data[2]);
   Flash_Test(0x08010000, 0x08020000);
+  //SD_GetCardInfo(&cardinfo);
+  BSP_SD_GetCardInfo(&cardinfo);
+  app_debug("[%s--%d] Specifies the card Type :%d \r\n", __func__, __LINE__, cardinfo.CardType);
+  app_debug("[%s--%d] Specifies the card version :%d \r\n", __func__, __LINE__, cardinfo.CardVersion);
+  app_debug("[%s--%d] Specifies the class of the card class :%d \r\n", __func__, __LINE__, cardinfo.Class);
+  app_debug("[%s--%d] Specifies the Relative Card Address :%d \r\n", __func__, __LINE__, cardinfo.RelCardAdd);
+  app_debug("[%s--%d] Specifies the Card Capacity in blocks :%d | %d | %d \r\n", __func__, __LINE__, cardinfo.BlockNbr, cardinfo.BlockNbr*cardinfo.BlockSize, cardinfo.BlockNbr*cardinfo.BlockSize/1024/1024);
+  app_debug("[%s--%d] Specifies one block size in bytes :%d \r\n", __func__, __LINE__, cardinfo.BlockSize);
+  app_debug("[%s--%d] Specifies the Card logical Capacity in blocks :%d \r\n", __func__, __LINE__, cardinfo.LogBlockNbr);
+  app_debug("[%s--%d] Specifies logical block size in bytes  :%d \r\n", __func__, __LINE__, cardinfo.LogBlockSize);
   /* USER CODE END 2 */
 
   /* Infinite loop */

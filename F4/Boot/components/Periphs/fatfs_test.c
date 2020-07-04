@@ -32,7 +32,7 @@ void fs_test(void)
 
 	//uart_printf("文件系统测试开始:\r\n");
 	/* 格式化文件系统 */
-	res = f_mkfs("0:", FM_FAT, 0, work, sizeof(work));//"0:"是卷标，来自于 #define SPI_FLASH		0
+	res = f_mkfs("0:", FM_FAT|FM_SFD, 0, work, sizeof(work));//"0:"是卷标，来自于 #define SPI_FLASH		0
 	if (res)
 	{
 		//uart_printf("文件系统格式化失败.\r\n");

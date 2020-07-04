@@ -145,7 +145,8 @@ int app_debug(const char *__format, ...)
 	va_start(ap, __format);
 	//vprintf(__format, ap);
 	//snprintf(text, sizeof (text), __format, ap);
-	vsprintf(debug_text, __format, ap);
+	//vsprintf(debug_text, __format, ap);
+	vsnprintf(debug_text, sizeof(debug_text)-1, __format, ap);
 	va_end(ap);
 	uart3_send((uint8_t*)debug_text, strlen(debug_text));
 	//_serial_debug->write(_serial_debug, 0, "\r\n", 2);
