@@ -34,6 +34,7 @@
 #include "sha1/sha1.h"
 #include "Periphs/uart.h"
 #include "Periphs/Flash.h"
+#include "version.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -161,6 +162,7 @@ int main(void)
   led_tick = HAL_GetTick() + 200;
   HAL_Delay(200);  // delay, check VBUS
   app_debug("[%s--%d] system start!\r\n", __func__, __LINE__);
+  app_debug("[%s--%d] Ver[%d | 0x%08X]:%s\r\n", __func__, __LINE__, sizeof(Emb_Version), &Emb_Version, Emb_Version.version);
 //  ret = FLASH_Erase(0x08020000, 0x08030000);
 //  app_debug("[%s--%d] FLASH_Erase[%d]\r\n", __func__, __LINE__, ret);
 //  ret = Flash_Write(0x08010000, data, 3);
