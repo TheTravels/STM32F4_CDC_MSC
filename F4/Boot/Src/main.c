@@ -153,7 +153,7 @@ int main(void)
   //USART3_Init(115200);
   //MX_FATFS_Init();
   SD_initialize(0);
-  fs_test();
+  //fs_test();
   //fs_test_sdio();
   //MX_USB_DEVICE_Init();
   //SHA1(NULL, "Hello", 5); // -Os Optimize code, add code 4K
@@ -168,7 +168,9 @@ int main(void)
 //  memset(data, 0, sizeof(data));
 //  ret = Flash_Read(0x08010000, data, 3);
 //  app_debug("[%s--%d] FLASH_read<%d>[%08X %08X %08X]\r\n", __func__, __LINE__, ret, data[0], data[1], data[2]);
-  Flash_Test(0x08010000, 0x08020000);
+  //Flash_Test(0x08010000, 0x08020000);
+  //flash_disk_init();
+  //sram_disk_init();
   //SD_GetCardInfo(&cardinfo);
   BSP_SD_GetCardInfo(&cardinfo);
   app_debug("[%s--%d] Specifies the card Type :%d \r\n", __func__, __LINE__, cardinfo.CardType);

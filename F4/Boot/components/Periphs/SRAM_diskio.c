@@ -27,9 +27,10 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "ff_gen_drv.h"
+#include <string.h>
 #include "SRAM_diskio.h"
 #include "main.h"
-#include <string.h>
+#include "Flash.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -41,6 +42,13 @@
 #else
 #define SRAM_TIMEOUT 30 * 1000
 #endif
+
+
+//#define ADDR_FLASH_SECTOR_6     ((uint32_t)0x08040000) 	// 128 Kbytes
+//#define ADDR_FLASH_SECTOR_7     ((uint32_t)0x08060000) 	// 128 Kbytes
+
+#define FLASH_SECTOR_ADDR_MAP     ((uint32_t)0x08040000) 	// 128 Kbytes
+//#undef  FLASH_SECTOR_ADDR_MAP
 
 #define SRAM_DEFAULT_BLOCK_SIZE 512
 
@@ -77,21 +85,78 @@ uint16_t sram_disk_write(const uint8_t *const buf, const uint32_t _addr, const u
   /* USER CODE END 7 */
 }
 #else
+
+#ifndef FLASH_SECTOR_ADDR_MAP
 static char _ccm ccm_disk[1024*64];  // 0-64K
 static char sram_disk[1024*32];      // 64-96K
-const uint32_t ccm_size = sizeof(ccm_disk);
-const uint32_t sram_size = sizeof(sram_disk);
+static const uint32_t ccm_size = sizeof(ccm_disk);
+static const uint32_t sram_size = sizeof(sram_disk);
 const uint32_t sram_disk_size = sizeof(ccm_disk)+sizeof(sram_disk);
+#else
+static char _ccm ccm_disk[1024*64];  // 0-64K
+static uint32_t flash_sector_addr_map = FLASH_SECTOR_ADDR_MAP;      // 64-96K
+static const uint32_t ccm_size = sizeof(ccm_disk);
+#define FLASH_SIZE    (1024*128+1024*128)    // 128KB + 128KB
+static const uint32_t flash_size = FLASH_SIZE;  // 128KB + 128KB
+const uint32_t sram_disk_size = sizeof(ccm_disk)+FLASH_SIZE;
+#endif
+//void SRAM_Init(void)
+//{
+//	int i = 0;
+//	for(i=0; i<SRAM_LEN_K*1024; i++)
+//	{
+//		SRAM_BUF[i] = 0;
+//	}
+//}
+
+int SRAM_Write(const uint8_t* const pBuffer, const uint32_t WriteAddr, const uint16_t NumByteToWrite)
+{
+	int i=0;
+	//dprintf("WriteAddr: %08X\r\n", WriteAddr);
+	for(i=0;i<NumByteToWrite;i++)// Write SRAM
+	{
+		if((WriteAddr+i)>=sizeof(ccm_disk)) return -1;
+		ccm_disk[WriteAddr+i] = pBuffer[i];
+	}
+	return 0;
+}
+int SRAM_Read(uint8_t* const pBuffer, uint32_t ReadAddr, uint16_t NumByteToRead)
+{
+	int i=0;
+	//dprintf("ReadAddr: %08X\r\n", ReadAddr);
+	for(i=0;i<NumByteToRead;i++)// Read SRAM
+	{
+		if((ReadAddr+i)>=sizeof(ccm_disk)) return -1;
+		pBuffer[i] = ccm_disk[ReadAddr+i];
+	}
+	return 0;
+}
+void flash_disk_init(void)
+{
+  /* USER CODE BEGIN 6 */
+#ifdef FLASH_SECTOR_ADDR_MAP
+  FLASH_Erase(FLASH_SECTOR_ADDR_MAP, FLASH_SECTOR_ADDR_MAP+flash_size-1);
+#endif
+  /* USER CODE END 6 */
+}
+
 void sram_disk_init(void)
 {
   /* USER CODE BEGIN 6 */
   memset(ccm_disk, 0, ccm_size);
+#ifndef FLASH_SECTOR_ADDR_MAP
   memset(sram_disk, 0, sram_size);
+#else
+  FLASH_Erase(FLASH_SECTOR_ADDR_MAP, FLASH_SECTOR_ADDR_MAP+flash_size-1);
+#endif
   /* USER CODE END 6 */
 }
-uint16_t sram_disk_read(uint8_t *const buf, const uint32_t _addr, const uint16_t _len)
+uint16_t sram_disk_read(uint8_t *const buf, const uint32_t blk_addr, const uint16_t blk_len)
 {
   /* USER CODE BEGIN 6 */
+	  uint32_t _addr = blk_addr*512;
+	  const uint32_t _len = blk_len*512;
+#ifndef FLASH_SECTOR_ADDR_MAP
   // sram
   if(ccm_size<=_addr) memcpy(buf, &sram_disk[_addr-ccm_size], _len);
   else
@@ -109,12 +174,46 @@ uint16_t sram_disk_read(uint8_t *const buf, const uint32_t _addr, const uint16_t
 		  memcpy(&buf[len], &sram_disk[offset], _len-len);
 	  }
   }
+#else
+  // flash
+//  if(ccm_size<=_addr) Flash_Read(flash_sector_addr_map+_addr-ccm_size, (uint32_t*)buf, _len>>2);  // /4
+//  else
+//  {
+//	  uint32_t len;
+//	  uint32_t offset;
+//	  len = ccm_size - _addr;
+//	  // ccm
+//	  if(len>=_len) memcpy(buf, &ccm_disk[_addr], _len);
+//	  else // sram && ccm
+//	  {
+//		  offset = _addr-ccm_size;
+//		  if(offset>=flash_size) return 0;
+//		  memcpy(buf, &ccm_disk[_addr], len);
+//		  //memcpy(&buf[len], &sram_disk[offset], _len-len);
+//		  Flash_Read(flash_sector_addr_map+offset, (uint32_t*)&buf[len], (_len-len)>>2);  // /4
+//	  }
+//  }
+	uint32_t Memory_Offset = blk_addr*512;
+	//printf("@%s [%d]addr: %03dK | %04d\r\n", __func__, lun, (blk_addr*512)/1024, blk_len*512);
+	if(ccm_size>Memory_Offset) // FAT32 ==> SRAM
+	{
+		SRAM_Read(buf, blk_addr*512, blk_len*512) ;
+	}
+	else
+	{
+		Memory_Offset -= (uint32_t)ccm_size;
+		Flash_Read(flash_sector_addr_map+Memory_Offset,(const uint32_t*)buf, (blk_len*512)/4);
+	}
+#endif
   return _len;
   /* USER CODE END 6 */
 }
-uint16_t sram_disk_write(const uint8_t *const buf, const uint32_t _addr, const uint16_t _len)
+uint16_t sram_disk_write(const uint8_t *const buf, const uint32_t blk_addr, const uint16_t blk_len)
 {
   /* USER CODE BEGIN 7 */
+	  uint32_t _addr = blk_addr*512;
+	  const uint32_t _len = blk_len*512;
+#ifndef FLASH_SECTOR_ADDR_MAP
   // sram
   if(ccm_size<=_addr) memcpy(&sram_disk[_addr-ccm_size], buf, _len);
   else
@@ -132,6 +231,39 @@ uint16_t sram_disk_write(const uint8_t *const buf, const uint32_t _addr, const u
 		  memcpy(&sram_disk[offset], &buf[len], _len-len);
 	  }
   }
+#else
+  // sram
+//  if(ccm_size<=_addr) Flash_Write(flash_sector_addr_map+_addr-ccm_size, (const uint32_t*)buf, _len>>2);   // /4
+//  else
+//  {
+//	  uint32_t len;
+//	  uint32_t offset;
+//	  len = ccm_size - _addr;
+//	  // ccm
+//	  if(len>=_len) memcpy(&ccm_disk[_addr], buf, _len);
+//	  else // sram && ccm
+//	  {
+//		  offset = _addr-ccm_size;
+//		  if(offset>=flash_size) return 0;
+//		  memcpy(&ccm_disk[_addr], buf, len);
+//		  //memcpy(&sram_disk[offset], &buf[len], _len-len);
+//		  Flash_Write(flash_sector_addr_map+offset, (const uint32_t*)&buf[len], (_len-len)>>2);   // /4
+//	  }
+//  }
+	uint32_t Memory_Offset = blk_addr*512;
+	//printf("@%s [%d]addr: %03dK | %04d\r\n", __func__, lun, (blk_addr*512)/1024, blk_len*512);
+	//check_Sojiro(Memory_Offset, (char*)buf, blk_len*512);
+	if(ccm_size>Memory_Offset) // FAT32 ==> SRAM
+	{
+		SRAM_Write(buf, blk_addr*512, blk_len*512);
+	}
+	else
+	{
+		//DownLoadStatus();
+		Memory_Offset -= (uint32_t)ccm_size;
+		Flash_Write(flash_sector_addr_map+Memory_Offset,(const uint32_t*)buf, (blk_len*512)/4);
+	}
+#endif
   return _len;
   /* USER CODE END 7 */
 }

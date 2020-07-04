@@ -124,13 +124,14 @@ int FLASH_Erase(const uint32_t start_addr, const uint32_t end_addr)
 	  if(HAL_OK==status) return 0;
 	  return -1;
 }
-int Flash_Write(uint32_t const WriteAddr,uint32_t const *pBuffer,uint32_t const NumToWrite)	
+extern int app_debug(const char *__format, ...);
+int Flash_Write(const uint32_t WriteAddr, const uint32_t *const pBuffer, const uint32_t NumToWrite)
 { 
 	HAL_StatusTypeDef status = HAL_OK;
 	uint32_t size = 0;
 	volatile const uint32_t* const FlashAddr=(volatile uint32_t*)WriteAddr;
-	//printf("@%s addr: 0x%008X | %04d\r\n", __func__, WriteAddr, NumToWrite);
-	//printf("Flash:0x%08X ,0x%08X\r\n", pBuffer[0], pBuffer[1]);
+	app_debug("@%s addr: 0x%008X | %04d | 0x%008X \r\n", __func__, WriteAddr, NumToWrite, WriteAddr+NumToWrite*4);
+	app_debug("Flash:0x%08X ,0x%08X\r\n", pBuffer[0], pBuffer[1]);
 	if(WriteAddr<STM32_FLASH_BASE||WriteAddr%4) return -1;	// Addr error
 	HAL_FLASH_Unlock();
 	//FLASH_DataCacheCmd(DISABLE);
@@ -175,7 +176,7 @@ int Flash_Write(uint32_t const WriteAddr,uint32_t const *pBuffer,uint32_t const 
 	HAL_FLASH_Lock();
 	return 0;
 }
-int Flash_Read(uint32_t ReadAddr,uint32_t *pBuffer,uint32_t NumToRead)   	
+int Flash_Read(const uint32_t ReadAddr,uint32_t *const pBuffer, const uint32_t NumToRead)
 {
 	uint32_t i;
 	volatile const uint32_t* FlashAddr = NULL;

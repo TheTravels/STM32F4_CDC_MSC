@@ -36,6 +36,7 @@
 /* Exported functions ------------------------------------------------------- */
 extern const Diskio_drvTypeDef  SRAM_Driver;
 extern const uint32_t sram_disk_size;
+extern void flash_disk_init(void);
 extern uint16_t sram_disk_read(uint8_t *const buf, const uint32_t _addr, const uint16_t _len);
 extern uint16_t sram_disk_write(const uint8_t *const buf, const uint32_t _addr, const uint16_t _len);
 /* USER CODE BEGIN lastSection */ 

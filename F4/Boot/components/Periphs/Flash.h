@@ -20,8 +20,8 @@ extern "C" {
 
 // Flash Base Addr
 #define STM32_FLASH_BASE 0x08000000 	
-extern int Flash_Write(uint32_t const WriteAddr,uint32_t const *pBuffer,uint32_t const NumToWrite);
-extern int Flash_Read(uint32_t ReadAddr,uint32_t *pBuffer,uint32_t NumToRead);
+extern int Flash_Write(const uint32_t WriteAddr, const uint32_t *const pBuffer, const uint32_t NumToWrite);
+extern int Flash_Read(const uint32_t ReadAddr, uint32_t *const pBuffer, const uint32_t NumToRead);
 extern int FLASH_Erase(const uint32_t start_addr, const uint32_t end_addr);
 extern int Flash_Test(const uint32_t EraseAddr, const uint32_t WriteAddr);
 

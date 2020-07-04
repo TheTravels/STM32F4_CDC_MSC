@@ -233,7 +233,7 @@ int8_t STORAGE_GetCapacity_FS(uint8_t lun, uint32_t *block_num, uint16_t *block_
 	case LUN_SRAM:
 		  *block_num = sram_disk_size/STORAGE_BLK_SIZ;
 		  *block_size = STORAGE_BLK_SIZ;
-		  app_debug("[%s--%d] sram_disk_size :%d block_num:%d \r\n", __func__, __LINE__, sram_disk_size, *block_num);
+		  //app_debug("[%s--%d] sram_disk_size :%d block_num:%d \r\n", __func__, __LINE__, sram_disk_size, *block_num);
 		break;
 	case LUN_SDIO:
 		BSP_SD_GetCardInfo(&CardInfo);
@@ -315,7 +315,8 @@ int8_t STORAGE_Read_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t bl
 	switch(lun)
 	{
 	case LUN_SRAM:
-		sram_disk_read(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+		//sram_disk_read(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+		sram_disk_read(buf, blk_addr, blk_len);
 		break;
 	case LUN_SDIO:
 		SD_read(0, buf, blk_addr, blk_len);
@@ -349,7 +350,8 @@ int8_t STORAGE_Write_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t b
 	switch(lun)
 	{
 	case LUN_SRAM:
-		sram_disk_write(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+		//sram_disk_write(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+		sram_disk_write(buf, blk_addr, blk_len);
 		break;
 	case LUN_SDIO:
 		SD_write(0, buf, blk_addr, blk_len);
