@@ -109,7 +109,7 @@ const uint32_t sram_disk_size = sizeof(ccm_disk)+FLASH_SIZE;
 //	}
 //}
 
-int SRAM_Write(const uint8_t* const pBuffer, const uint32_t WriteAddr, const uint16_t NumByteToWrite)
+static int __SRAM_Write(const uint8_t* const pBuffer, const uint32_t WriteAddr, const uint16_t NumByteToWrite)
 {
 	int i=0;
 	//dprintf("WriteAddr: %08X\r\n", WriteAddr);
@@ -120,7 +120,7 @@ int SRAM_Write(const uint8_t* const pBuffer, const uint32_t WriteAddr, const uin
 	}
 	return 0;
 }
-int SRAM_Read(uint8_t* const pBuffer, uint32_t ReadAddr, uint16_t NumByteToRead)
+static int __SRAM_Read(uint8_t* const pBuffer, const uint32_t ReadAddr, const uint16_t NumByteToRead)
 {
 	int i=0;
 	//dprintf("ReadAddr: %08X\r\n", ReadAddr);
@@ -154,8 +154,9 @@ void sram_disk_init(void)
 uint16_t sram_disk_read(uint8_t *const buf, const uint32_t blk_addr, const uint16_t blk_len)
 {
   /* USER CODE BEGIN 6 */
-	  uint32_t _addr = blk_addr*512;
-	  const uint32_t _len = blk_len*512;
+	  const uint32_t _addr = blk_addr*SRAM_DEFAULT_BLOCK_SIZE;
+	  const uint32_t _len = blk_len*SRAM_DEFAULT_BLOCK_SIZE;
+	  //app_debug("@%s \t\tblk_addr: %4d | %3d \r\n", __func__, blk_addr, blk_len);
 #ifndef FLASH_SECTOR_ADDR_MAP
   // sram
   if(ccm_size<=_addr) memcpy(buf, &sram_disk[_addr-ccm_size], _len);
@@ -176,34 +177,50 @@ uint16_t sram_disk_read(uint8_t *const buf, const uint32_t blk_addr, const uint1
   }
 #else
   // flash
-//  if(ccm_size<=_addr) Flash_Read(flash_sector_addr_map+_addr-ccm_size, (uint32_t*)buf, _len>>2);  // /4
+#if 1
+//  if(ccm_size<=_addr) Flash_Read(flash_sector_addr_map+_addr-ccm_size, (uint32_t*)buf, (blk_len*512)/4);  // /4
 //  else
 //  {
-//	  uint32_t len;
-//	  uint32_t offset;
-//	  len = ccm_size - _addr;
-//	  // ccm
-//	  if(len>=_len) memcpy(buf, &ccm_disk[_addr], _len);
-//	  else // sram && ccm
-//	  {
-//		  offset = _addr-ccm_size;
-//		  if(offset>=flash_size) return 0;
-//		  memcpy(buf, &ccm_disk[_addr], len);
-//		  //memcpy(&buf[len], &sram_disk[offset], _len-len);
-//		  Flash_Read(flash_sector_addr_map+offset, (uint32_t*)&buf[len], (_len-len)>>2);  // /4
-//	  }
+////	  uint32_t len;
+////	  //uint32_t offset;
+////	  len = ccm_size - _addr;
+////	  // ccm
+////	  if(len>=_len) SRAM_Read(buf, _addr, _len);
+////	  else // len<_len flash && ccm
+////	  {
+////		  //offset = _addr-ccm_size;
+////		  //if(offset>=flash_size) return 0;
+////		  //memcpy(buf, &ccm_disk[_addr], len);
+////		  SRAM_Read(buf, _addr, len);
+////		  //memcpy(&buf[len], &sram_disk[offset], _len-len);
+////		  Flash_Read(flash_sector_addr_map+0, (uint32_t*)&buf[len], (_len-len)>>2);  // /4
+////	  }
+//	  SRAM_Read(buf, _addr, _len);
 //  }
 	uint32_t Memory_Offset = blk_addr*512;
 	//printf("@%s [%d]addr: %03dK | %04d\r\n", __func__, lun, (blk_addr*512)/1024, blk_len*512);
 	if(ccm_size>Memory_Offset) // FAT32 ==> SRAM
 	{
-		SRAM_Read(buf, blk_addr*512, blk_len*512) ;
+		__SRAM_Read(buf, blk_addr*512, blk_len*512) ;
 	}
 	else
 	{
 		Memory_Offset -= (uint32_t)ccm_size;
-		Flash_Read(flash_sector_addr_map+Memory_Offset,(const uint32_t*)buf, (blk_len*512)/4);
+		Flash_Read(flash_sector_addr_map+Memory_Offset,(uint32_t*)buf, (blk_len*512)/4);
 	}
+#else
+	uint32_t Memory_Offset = blk_addr*512;
+	//printf("@%s [%d]addr: %03dK | %04d\r\n", __func__, lun, (blk_addr*512)/1024, blk_len*512);
+	if(ccm_size>Memory_Offset) // FAT32 ==> SRAM
+	{
+		__SRAM_Read(buf, blk_addr*512, blk_len*512) ;
+	}
+	else
+	{
+		Memory_Offset -= (uint32_t)ccm_size;
+		Flash_Read(flash_sector_addr_map+Memory_Offset,(uint32_t*)buf, (blk_len*512)/4);
+	}
+#endif
 #endif
   return _len;
   /* USER CODE END 6 */
@@ -211,8 +228,9 @@ uint16_t sram_disk_read(uint8_t *const buf, const uint32_t blk_addr, const uint1
 uint16_t sram_disk_write(const uint8_t *const buf, const uint32_t blk_addr, const uint16_t blk_len)
 {
   /* USER CODE BEGIN 7 */
-	  uint32_t _addr = blk_addr*512;
-	  const uint32_t _len = blk_len*512;
+	  const uint32_t _addr = blk_addr*SRAM_DEFAULT_BLOCK_SIZE;
+	  const uint32_t _len = blk_len*SRAM_DEFAULT_BLOCK_SIZE;
+	  //app_debug("@%s \t\tblk_addr: %4d | %3d \r\n", __func__, blk_addr, blk_len);
 #ifndef FLASH_SECTOR_ADDR_MAP
   // sram
   if(ccm_size<=_addr) memcpy(&sram_disk[_addr-ccm_size], buf, _len);
@@ -232,30 +250,37 @@ uint16_t sram_disk_write(const uint8_t *const buf, const uint32_t blk_addr, cons
 	  }
   }
 #else
-  // sram
-//  if(ccm_size<=_addr) Flash_Write(flash_sector_addr_map+_addr-ccm_size, (const uint32_t*)buf, _len>>2);   // /4
-//  else
+  // flash
+#if 1
+  //uint32_t offset;
+//  if(ccm_size<=_addr)
 //  {
-//	  uint32_t len;
-//	  uint32_t offset;
-//	  len = ccm_size - _addr;
-//	  // ccm
-//	  if(len>=_len) memcpy(&ccm_disk[_addr], buf, _len);
-//	  else // sram && ccm
-//	  {
-//		  offset = _addr-ccm_size;
-//		  if(offset>=flash_size) return 0;
-//		  memcpy(&ccm_disk[_addr], buf, len);
-//		  //memcpy(&sram_disk[offset], &buf[len], _len-len);
-//		  Flash_Write(flash_sector_addr_map+offset, (const uint32_t*)&buf[len], (_len-len)>>2);   // /4
-//	  }
+//	  uint32_t offset = _addr-ccm_size;
+//	  Flash_Write(flash_sector_addr_map+offset, (const uint32_t*)buf, (blk_len*512)/4);   // /4
+//  }
+//  else // ccm_size>_addr
+//  {
+////	  uint32_t len;
+////	  len = ccm_size - _addr;
+////	  // ccm
+////	  if(len>=_len) SRAM_Write(buf, _addr, _len);
+////	  else // len<_len  flash && ccm
+////	  {
+////		  //offset = _len-len;
+////		  //if(offset>=flash_size) return 0;
+////		  //memcpy(&ccm_disk[_addr], buf, len);
+////		  SRAM_Write(buf, _addr, len);
+////		  //memcpy(&sram_disk[offset], &buf[len], _len-len);
+////		  Flash_Write(flash_sector_addr_map+0, (const uint32_t*)&buf[len], (_len-len)>>2);   // /4
+////	  }
+//	  SRAM_Write(buf, _addr, _len);
 //  }
 	uint32_t Memory_Offset = blk_addr*512;
 	//printf("@%s [%d]addr: %03dK | %04d\r\n", __func__, lun, (blk_addr*512)/1024, blk_len*512);
 	//check_Sojiro(Memory_Offset, (char*)buf, blk_len*512);
 	if(ccm_size>Memory_Offset) // FAT32 ==> SRAM
 	{
-		SRAM_Write(buf, blk_addr*512, blk_len*512);
+		__SRAM_Write(buf, blk_addr*512, blk_len*512);
 	}
 	else
 	{
@@ -263,6 +288,21 @@ uint16_t sram_disk_write(const uint8_t *const buf, const uint32_t blk_addr, cons
 		Memory_Offset -= (uint32_t)ccm_size;
 		Flash_Write(flash_sector_addr_map+Memory_Offset,(const uint32_t*)buf, (blk_len*512)/4);
 	}
+#else
+	uint32_t Memory_Offset = blk_addr*512;
+	//printf("@%s [%d]addr: %03dK | %04d\r\n", __func__, lun, (blk_addr*512)/1024, blk_len*512);
+	//check_Sojiro(Memory_Offset, (char*)buf, blk_len*512);
+	if(ccm_size>Memory_Offset) // FAT32 ==> SRAM
+	{
+		__SRAM_Write(buf, blk_addr*512, blk_len*512);
+	}
+	else
+	{
+		//DownLoadStatus();
+		Memory_Offset -= (uint32_t)ccm_size;
+		Flash_Write(flash_sector_addr_map+Memory_Offset,(const uint32_t*)buf, (blk_len*512)/4);
+	}
+#endif
 #endif
   return _len;
   /* USER CODE END 7 */
@@ -370,7 +410,8 @@ DRESULT SRAM_read(BYTE lun, BYTE *buff, DWORD sector, UINT count)
 //    {
 //    }
 	  //memcpy(buff, &sram_disk[sector*SRAM_DEFAULT_BLOCK_SIZE], count*SRAM_DEFAULT_BLOCK_SIZE);
-	  sram_disk_read(buff, sector*SRAM_DEFAULT_BLOCK_SIZE, count*SRAM_DEFAULT_BLOCK_SIZE);
+	  app_debug("@%s \tsector: %4d | %3d \r\n", __func__, sector, count);
+	  sram_disk_read(buff, sector, count);
     res = RES_OK;
   }
 
@@ -403,7 +444,8 @@ DRESULT SRAM_write(BYTE lun, const BYTE *buff, DWORD sector, UINT count)
 //    {
 //    }
 	  //memcpy(&sram_disk[sector*SRAM_DEFAULT_BLOCK_SIZE], buff, count*SRAM_DEFAULT_BLOCK_SIZE);
-	  sram_disk_write(buff, sector*SRAM_DEFAULT_BLOCK_SIZE, count*SRAM_DEFAULT_BLOCK_SIZE);
+	  app_debug("@%s \tsector: %4d | %3d \r\n", __func__, sector, count);
+	  sram_disk_write(buff, sector, count);
     res = RES_OK;
   }
 

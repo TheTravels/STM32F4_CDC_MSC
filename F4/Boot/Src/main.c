@@ -153,7 +153,7 @@ int main(void)
   //USART3_Init(115200);
   //MX_FATFS_Init();
   SD_initialize(0);
-  //fs_test();
+  fs_test();
   //fs_test_sdio();
   //MX_USB_DEVICE_Init();
   //SHA1(NULL, "Hello", 5); // -Os Optimize code, add code 4K

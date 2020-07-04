@@ -130,8 +130,8 @@ int Flash_Write(const uint32_t WriteAddr, const uint32_t *const pBuffer, const u
 	HAL_StatusTypeDef status = HAL_OK;
 	uint32_t size = 0;
 	volatile const uint32_t* const FlashAddr=(volatile uint32_t*)WriteAddr;
-	app_debug("@%s addr: 0x%008X | %04d | 0x%008X \r\n", __func__, WriteAddr, NumToWrite, WriteAddr+NumToWrite*4);
-	app_debug("Flash:0x%08X ,0x%08X\r\n", pBuffer[0], pBuffer[1]);
+	//app_debug("@%s addr: 0x%008X | %04d | 0x%008X \r\n", __func__, WriteAddr, NumToWrite, WriteAddr+NumToWrite*4);
+	//app_debug("Flash:0x%08X ,0x%08X\r\n", pBuffer[0], pBuffer[1]);
 	if(WriteAddr<STM32_FLASH_BASE||WriteAddr%4) return -1;	// Addr error
 	HAL_FLASH_Unlock();
 	//FLASH_DataCacheCmd(DISABLE);
