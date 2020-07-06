@@ -176,6 +176,35 @@ int Flash_Write(const uint32_t WriteAddr, const uint32_t *const pBuffer, const u
 	HAL_FLASH_Lock();
 	return 0;
 }
+// 强制写入
+int Flash_Write_Force(const uint32_t WriteAddr, const uint32_t *const pBuffer, const uint32_t NumToWrite)
+{
+	uint32_t size = 0;
+	//app_debug("@%s addr: 0x%008X | %04d | 0x%008X \r\n", __func__, WriteAddr, NumToWrite, WriteAddr+NumToWrite*4);
+	//app_debug("Flash:0x%08X ,0x%08X\r\n", pBuffer[0], pBuffer[1]);
+	if(WriteAddr<STM32_FLASH_BASE||WriteAddr%4) return -1;	// Addr error
+	HAL_FLASH_Unlock();
+	//FLASH_DataCacheCmd(DISABLE);
+	__HAL_FLASH_DATA_CACHE_DISABLE();
+	for(size=0; size<NumToWrite; size++)
+	{
+		/*if(FLASH_ProgramWord(WriteAddr+size*4,pBuffer[size])!=FLASH_COMPLETE)// write
+		{
+			break;	// error
+		}*/
+		if(HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, WriteAddr+size*4,pBuffer[size])!=HAL_OK)// write
+		{
+			__HAL_FLASH_DATA_CACHE_ENABLE();
+			HAL_FLASH_Lock();
+			//break;	// error
+			return -1;
+		}
+	}
+	//FLASH_DataCacheCmd(ENABLE);
+	__HAL_FLASH_DATA_CACHE_ENABLE();
+	HAL_FLASH_Lock();
+	return 0;
+}
 int Flash_Read(const uint32_t ReadAddr,uint32_t *const pBuffer, const uint32_t NumToRead)
 {
 	uint32_t i;

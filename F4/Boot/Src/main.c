@@ -154,11 +154,16 @@ int main(void)
   //USART3_Init(115200);
   //MX_FATFS_Init();
   SD_initialize(0);
-  fs_test();
+  //fs_test();
   //fs_test_sdio();
   //MX_USB_DEVICE_Init();
   //SHA1(NULL, "Hello", 5); // -Os Optimize code, add code 4K
   LL_GPIO_ResetOutputPin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
+  fs_test();
+  memset(send_buf, 0, sizeof(send_buf));
+  // 利用 flash的写 0特点擦除原有数据
+  len = Flash_Write_Force(0x08000200, (uint32_t *)send_buf, 8);
+  app_debug("[%s--%d] len:%d \r\n", __func__, __LINE__, len);
   led_tick = HAL_GetTick() + 200;
   HAL_Delay(200);  // delay, check VBUS
   app_debug("[%s--%d] system start!\r\n", __func__, __LINE__);
