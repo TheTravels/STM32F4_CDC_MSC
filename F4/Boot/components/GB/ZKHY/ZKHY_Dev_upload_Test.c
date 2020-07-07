@@ -122,12 +122,18 @@ void ZKHY_frame_upload_test(void)
     };
 #else
     uint8_t cmd_list[] = {
-        ZKHY_UPLOAD_CFG_REQ,
-        ZKHY_UPLOAD_FW_REQ,
-        ZKHY_UPLOAD_FWB_REQ,
-        ZKHY_UPLOAD_CCFG_REQ,
-        ZKHY_UPLOAD_CFW_REQ,
-        ZKHY_UPLOAD_CFWB_REQ,
+        ZKHY_EMB_SYNC,
+        ZKHY_EMB_SYNCA,
+        ZKHY_EMB_ERASE,
+        ZKHY_EMB_ERASEA,
+        ZKHY_EMB_WRITE,
+        ZKHY_EMB_WRITEA,
+        ZKHY_EMB_READ,
+        ZKHY_EMB_READA,
+        ZKHY_EMB_BOOT,
+        ZKHY_EMB_BOOTA,
+        ZKHY_EMB_REBOOT,
+        ZKHY_EMB_REBOOTA,
     };
 #endif
     const int cmd_list_size = sizeof(cmd_list)/sizeof(cmd_list[0]);

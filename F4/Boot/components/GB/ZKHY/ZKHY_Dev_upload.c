@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
-//#include "../GB17691.h"
+#include "../GB17691.h"
 
 #define  debug_log     0
 #ifndef debug_log
@@ -262,7 +262,7 @@ static inline int EnFrame_Emb_synca(const struct ZKHY_Frame_Emb_synca* const _in
     index += gb_cpy(&buf[index], _info->boot_ver, sizeof (_info->boot_ver));
     index += gb_cpy(&buf[index], _info->app_ver, sizeof (_info->app_ver));
     index += gb_cpy(&buf[index], _info->ID, sizeof (_info->ID));
-    index += bigend32_encode(&buf[index], _info->CRC);
+    index += bigend32_encode(&buf[index], _info->crc);
     index += bigend16_encode(&buf[index], _info->block);
     // buf 大小检查
     if(index>_size) return ZKHY_RESP_ERR_ENCODE_PACKL;
@@ -277,7 +277,7 @@ static inline int DeFrame_Emb_synca(struct ZKHY_Frame_Emb_synca* const _info, co
     index += gb_cpy(_info->boot_ver, &data[index], sizeof (_info->boot_ver));
     index += gb_cpy(_info->app_ver, &data[index], sizeof (_info->app_ver));
     index += gb_cpy(_info->ID, &data[index], sizeof (_info->ID));
-    index += bigend32_merge(&_info->CRC, data[index], data[index+1], data[index+2], data[index+3]);
+    index += bigend32_merge(&_info->crc, data[index], data[index+1], data[index+2], data[index+3]);
     index += bigend16_merge(&_info->block, data[index], data[index+1]);
     // buf 大小检查
     if(index>_size) return ZKHY_RESP_ERR_DECODE_PACKL;
@@ -426,7 +426,7 @@ static inline int EnFrame_Emb_boot(const struct ZKHY_Frame_Emb_boot* const _info
     uint16_t index=0;
     index=0;
     index += bigend32_encode(&buf[index], _info->total);
-    index += bigend32_encode(&buf[index], _info->CRC);
+    index += bigend32_encode(&buf[index], _info->crc);
     index += gb_cpy(&buf[index], _info->data, sizeof(_info->data));
     // buf 大小检查
     if(index>_size) return ZKHY_RESP_ERR_ENCODE_PACKL;
@@ -437,7 +437,7 @@ static inline int DeFrame_Emb_boot(struct ZKHY_Frame_Emb_boot* const _info, cons
     uint16_t index=0;
     index=0;
     index += bigend32_merge(&_info->total, data[index], data[index+1], data[index+2], data[index+3]);
-    index += bigend32_merge(&_info->CRC, data[index], data[index+1], data[index+2], data[index+3]);
+    index += bigend32_merge(&_info->crc, data[index], data[index+1], data[index+2], data[index+3]);
     index += gb_cpy(_info->data, &data[index], sizeof(_info->data));
     // buf 大小检查
     if(index>_size) return ZKHY_RESP_ERR_DECODE_PACKL;

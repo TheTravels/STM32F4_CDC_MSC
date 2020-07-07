@@ -35,6 +35,8 @@
 #include "Periphs/uart.h"
 #include "Periphs/Flash.h"
 #include "version.h"
+#include "GB/ZKHY/ZKHY_Dev_upload.h"
+struct ZKHY_Frame_upload Frame_upload;
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -65,6 +67,15 @@ extern USBD_StatusTypeDef USBD_DeInit(USBD_HandleTypeDef *pdev);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+enum Interface_uart{
+	INTER_UART_NONE  = 0x00,
+	INTER_UART1      = 0x01,
+	INTER_UART2      = 0x02,
+	INTER_UART3      = 0x03,
+	INTER_UART_CDC   = 0x04,
+};
+enum Interface_uart inter_uart=INTER_UART_NONE;
 extern uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
 //unsigned char cdc_rx_buffer[1024];
 //int cdc_rx_flag = 0;
@@ -106,6 +117,7 @@ uint8_t SD_GetCardInfo(HAL_SD_CardInfoTypeDef *cardinfo)
     return sta;
 }
 
+static uint8_t _ccm bl_data[1024*4];
 /* USER CODE END 0 */
 
 /**
@@ -117,6 +129,7 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	static uint8_t send_buf[256];
     int len=0;
+    int bl_len;
     HAL_SD_CardInfoTypeDef cardinfo;
 //    int ret = 0;
 //    uint32_t data[3]={0x123456AB, 0x12CD4568, 0x1256EF34};
@@ -162,7 +175,7 @@ int main(void)
   fs_test();
   memset(send_buf, 0, sizeof(send_buf));
   // 利用 flash的写 0特点擦除原有数据
-  len = Flash_Write_Force(0x08000200, (uint32_t *)send_buf, 8);
+  //len = Flash_Write_Force(0x08000200, (uint32_t *)send_buf, 8);
   app_debug("[%s--%d] len:%d \r\n", __func__, __LINE__, len);
   led_tick = HAL_GetTick() + 200;
   HAL_Delay(200);  // delay, check VBUS
@@ -178,6 +191,7 @@ int main(void)
   //Flash_Test(0x08010000, 0x08020000);
   //flash_disk_init();
   //sram_disk_init();
+  ZKHY_Slave_upload_init();
   //SD_GetCardInfo(&cardinfo);
   BSP_SD_GetCardInfo(&cardinfo);
   app_debug("[%s--%d] Specifies the card Type :%d \r\n", __func__, __LINE__, cardinfo.CardType);
@@ -232,10 +246,42 @@ int main(void)
       }
 #endif
       memset(send_buf, 0, sizeof(send_buf));
-      len = uart3_read(send_buf, sizeof(send_buf));
+      /*len = uart3_read(send_buf, sizeof(send_buf));
       if(len>0)
       {
     	  uart3_send(send_buf, len);
+      }*/
+//      switch(inter_uart)
+//      {
+//      case 1:
+//    	  break;
+//      case 2:
+//    	  break;
+//      case 3:
+//    	  break;
+//      case 4:
+//    	  break;
+//      default:
+//    	  break;
+//      }
+      memset(bl_data, 0, sizeof(bl_data));
+      bl_len = cdc_read(bl_data, sizeof(bl_data));
+      if(bl_len>0)
+      {
+    	  int resp;
+    	  int i;
+    	  for(i=0; i<20; i++)
+    	  {
+        	  app_debug("[%s--%d] bl_len :%d \r\n", __func__, __LINE__, bl_len);
+        	  resp = ZKHY_Slave_unFrame_upload(&Frame_upload, bl_data, bl_len, cdc_send);
+        	  if(ZKHY_RESP_ERR_PACK==resp) // 解包错误
+        	  {
+        		  HAL_Delay(10); // 100 B
+        		  bl_len += cdc_read(&bl_data[bl_len], sizeof(bl_data)-bl_len);
+        		  continue;
+        	  }
+        	  break;
+    	  }
       }
     /* USER CODE END WHILE */
 

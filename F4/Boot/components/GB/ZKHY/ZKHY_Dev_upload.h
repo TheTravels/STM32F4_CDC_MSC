@@ -180,7 +180,7 @@ struct ZKHY_Frame_Emb_synca{
     char boot_ver[32];     // Boot版本号
     char app_ver[32];      // App版本号
     uint8_t ID[32];        // 芯片ID号,超过32字节时只取32字节
-    uint32_t CRC;          // 设备中固件校验码
+    uint32_t crc;          // 设备中固件校验码
     uint16_t block;        // 每次分包写入的数据大小,即设备中接收数据的buf大小，建议为 512*n(n为整数)
 };
 
@@ -239,7 +239,7 @@ struct ZKHY_Frame_Emb_reada{
 // 引导 APP
 struct ZKHY_Frame_Emb_boot{
     uint32_t total;        // 固件大小
-    uint32_t CRC;          // 固件校验码
+    uint32_t crc;          // 固件校验码
     uint8_t data[20];      // SHA1哈希,与CRC一样用于校验固件
 };
 // 注:erase和volume可用于计算擦除进度。
@@ -311,8 +311,11 @@ static inline int ZKHY_frame_upload_init(struct ZKHY_Frame_upload* const _frame,
     return 0;
 }
 
+extern void ZKHY_Slave_upload_init(void);
 extern int ZKHY_Dev_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, uint8_t _buf[], const uint16_t _bsize);
 extern int ZKHY_Dev_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, const  uint8_t data[], const uint16_t _dsize);
+extern int ZKHY_Slave_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, uint8_t _buf[], const uint16_t _bsize);
+extern int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uint8_t data[], const uint16_t _dsize, int (*const send_func)(const uint8_t data[], const uint32_t _size));
 
 // 编解码测试
 extern void __ZKHY_frame_upload_test(const enum ZKHY_cmd_Upload cmd);
