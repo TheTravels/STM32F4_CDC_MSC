@@ -54,7 +54,7 @@ enum ZKHY_cmd_Upload
     //ZKHY_UPLOAD_CFWB_ACK      = 0x27,       // 0x27  下发固件块信息           下行 
     // FTP 指令
     // 远程烧号(0x50-0x5F)
-    // 嵌入式升级
+    // 嵌入式升级 (0x60-0x6F)
     ZKHY_EMB_SYNC             = 0x60,       // 0x60  设备同步
     ZKHY_EMB_SYNCA            = 0x61,       // 0x61  设备同步响应
     ZKHY_EMB_ERASE            = 0x62,       // 0x62  擦除设备
@@ -166,6 +166,7 @@ enum Emb_Store_number{
     EMB_STORE_ROM2        = 9,   // 9	"ROM2"	映射存储区2
     EMB_STORE_ROM3        = 10,  // 10	"ROM3"	映射存储区3
     EMB_STORE_UART        = 11,  // 11	"UART"	UART外设存储区,用于操作 UART进行数据收发
+    EMB_STORE_NONE        = 255, // 255	空,不操作
 };
 // 设备同步
 struct ZKHY_Frame_Emb_sync{
@@ -210,6 +211,8 @@ struct ZKHY_Frame_Emb_write{
             uint8_t StopBits;     // 停止位,取值: 1 1位停止位, 2 2位停止位
             uint8_t Parity;       // 奇偶校验,取值：0 disabled, 1 Even Parity, 2 Odd Parity
         }uart;
+        uint32_t key[8];          // 参数表
+        //uint32_t param[128];      // 参数表
     };
 };
 // 注:erase和volume可用于计算擦除进度。
@@ -233,7 +236,11 @@ struct ZKHY_Frame_Emb_reada{
     uint8_t status;        // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
     uint32_t seek;         // 数据读取偏移
     uint16_t block;        // 数据实际读取长度
-    uint8_t data[1024];    // 读取的数据,block字节
+    union{
+        uint8_t data[1024];    // 读取的数据,block字节
+        uint32_t key[8];          // 参数表
+        //uint32_t param[128];      // 参数表
+    };
 };
 
 // 引导 APP
@@ -249,7 +256,11 @@ struct ZKHY_Frame_Emb_boota{
 };
 
 // 复位设备
-// 复位设备数据单元为空。
+struct ZKHY_Frame_Emb_reboot{
+    // 复位机器必须校验,C1=0xA5A5A5A5,C1=0x5A5A5A5A.
+    uint32_t C1;
+    uint32_t C2;
+};
 struct ZKHY_Frame_Emb_reboota{
     uint8_t status;        // 状态：0成功、1不支持复位、2其它错误
     char info[32];         // 有限的错误信息
@@ -290,9 +301,21 @@ struct ZKHY_Frame_upload{
         struct ZKHY_Frame_Emb_reada     Emb_reada;
         struct ZKHY_Frame_Emb_boot      Emb_boot;
         struct ZKHY_Frame_Emb_boota     Emb_boota;
+        struct ZKHY_Frame_Emb_reboot    Emb_reboot;
         struct ZKHY_Frame_Emb_reboota   Emb_reboota;
     }DAT;
     uint8_t BCC;          // 校验码	Byte	1	BCC 异或校验。校验范围从命令单元到数据单元的最后一个字节。
+};
+
+union upload_Emb_Arg{
+    //char sn[32]; // 烧号
+    char param[256];      // 参数表
+    struct{      // 串口配置参数
+        uint32_t BaudRate;    // 波特率,范围:1000bps-460800bps
+        uint8_t DataWidth;    // 数据宽度,取值: 8 8位, 9 9位
+        uint8_t StopBits;     // 停止位,取值: 1 1位停止位, 2 2位停止位
+        uint8_t Parity;       // 奇偶校验,取值：0 disabled, 1 Even Parity, 2 Odd Parity
+    }uart;
 };
 
 // 编码一帧数据
@@ -307,13 +330,18 @@ static inline int ZKHY_frame_upload_init(struct ZKHY_Frame_upload* const _frame,
     _frame->STR[0] = ZKHY_UPLOAD_FRAME_STR0;
     _frame->STR[1] = ZKHY_UPLOAD_FRAME_STR1;
     _frame->CMD = cmd;
-    _frame->AVN = 0;
+    //_frame->AVN = 0;
+    _frame->AVN = 0x01;    // 协议版本号
     return 0;
 }
 
 extern void ZKHY_Slave_upload_init(void);
 extern int ZKHY_Dev_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, uint8_t _buf[], const uint16_t _bsize);
+// _sub_cmd:读写命令有子命令
+extern int ZKHY_Dev_Frame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, const enum Emb_Store_number _sub_cmd, const union upload_Emb_Arg* const Arg, uint8_t _buf[], const uint16_t _bsize);
 extern int ZKHY_Dev_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, const  uint8_t data[], const uint16_t _dsize);
+// 嵌入式升级
+extern int ZKHY_Dev_unFrame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, const  uint8_t data[], const uint16_t _dsize);
 extern int ZKHY_Slave_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, uint8_t _buf[], const uint16_t _bsize);
 extern int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uint8_t data[], const uint16_t _dsize, int (*const send_func)(const uint8_t data[], const uint32_t _size));
 

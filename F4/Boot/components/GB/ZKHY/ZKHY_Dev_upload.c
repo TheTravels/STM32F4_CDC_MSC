@@ -322,6 +322,10 @@ static inline int EnFrame_Emb_write(const struct ZKHY_Frame_Emb_write* const _in
         buf[index++] = _info->uart.StopBits;
         buf[index++] = _info->uart.Parity;
     }
+    else if(EMB_STORE_KEY==_info->MemNum) // write key
+    {
+        index += array32_encode(&buf[index], _info->key, 8);
+    }
     else index += gb_cpy(&buf[index], _info->data, _info->block);
     // buf 大小检查
     if(index>_size) return ZKHY_RESP_ERR_ENCODE_PACKL;
@@ -341,6 +345,10 @@ static inline int DeFrame_Emb_write(struct ZKHY_Frame_Emb_write* const _info, co
         _info->uart.DataWidth = data[index++];
         _info->uart.StopBits = data[index++];
         _info->uart.Parity = data[index++];
+    }
+    else if(EMB_STORE_KEY==_info->MemNum) // write key
+    {
+        index += array32_encode(&data[index], _info->key, 8);
     }
     else index += gb_cpy(_info->data, &data[index], _info->block);
     // buf 大小检查
@@ -402,7 +410,11 @@ static inline int EnFrame_Emb_reada(const struct ZKHY_Frame_Emb_reada* const _in
     buf[index++] = _info->status;
     index += bigend32_encode(&buf[index], _info->seek);
     index += bigend16_encode(&buf[index], _info->block);
-    index += gb_cpy(&buf[index], _info->data, _info->block);
+    if(EMB_STORE_KEY==_info->MemNum) // write key
+    {
+        index += array32_encode(&buf[index], _info->key, 8);
+    }
+    else index += gb_cpy(&buf[index], _info->data, _info->block);
     // buf 大小检查
     if(index>_size) return ZKHY_RESP_ERR_ENCODE_PACKL;
     return index; // len
@@ -416,7 +428,11 @@ static inline int DeFrame_Emb_reada(struct ZKHY_Frame_Emb_reada* const _info, co
     _info->status = data[index++];
     index += bigend32_merge(&_info->seek, data[index], data[index+1], data[index+2], data[index+3]);
     index += bigend16_merge(&_info->block, data[index], data[index+1]);
-    index += gb_cpy(_info->data, &data[index], _info->block);
+    if(EMB_STORE_KEY==_info->MemNum) // write key
+    {
+        index += array32_encode(&data[index], _info->key, 8);
+    }
+    else index += gb_cpy(_info->data, &data[index], _info->block);
     // buf 大小检查
     if(index>_size) return ZKHY_RESP_ERR_DECODE_PACKL;
     return index; // len
@@ -459,6 +475,26 @@ static inline int DeFrame_Emb_boota(struct ZKHY_Frame_Emb_boota* const _info, co
     index=0;
     _info->status = data[index++];
     index += gb_cpy(_info->info, &data[index], sizeof(_info->info));
+    // buf 大小检查
+    if(index>_size) return ZKHY_RESP_ERR_DECODE_PACKL;
+    return index; // len
+}
+static inline int EnFrame_Emb_reboot(const struct ZKHY_Frame_Emb_reboot* const _info, uint8_t buf[], const uint16_t _size)
+{
+    uint16_t index=0;
+    index=0;
+    index += bigend32_encode(&buf[index], _info->C1);
+    index += bigend32_encode(&buf[index], _info->C2);
+    // buf 大小检查
+    if(index>_size) return ZKHY_RESP_ERR_ENCODE_PACKL;
+    return index; // len
+}
+static inline int DeFrame_Emb_reboot(struct ZKHY_Frame_Emb_reboot* const _info, const uint8_t data[], const uint16_t _size)
+{
+    uint16_t index=0;
+    index=0;
+    index += bigend32_merge(&_info->C1, data[index], data[index+1], data[index+2], data[index+3]);
+    index += bigend32_merge(&_info->C2, data[index], data[index+1], data[index+2], data[index+3]);
     // buf 大小检查
     if(index>_size) return ZKHY_RESP_ERR_DECODE_PACKL;
     return index; // len
@@ -589,7 +625,7 @@ int ZKHY_EnFrame_upload(const struct ZKHY_Frame_upload* const _frame, uint8_t bu
         data_len = EnFrame_Emb_boota(&_frame->DAT.Emb_boota, &buf[index], _size-index-1);
         break;
     case ZKHY_EMB_REBOOT:  // 复位设备
-        data_len = 0;
+        data_len = EnFrame_Emb_reboot(&_frame->DAT.Emb_reboot, &buf[index], _size-index-1);
         break;
     case ZKHY_EMB_REBOOTA: // 复位设备状态
         data_len = EnFrame_Emb_reboota(&_frame->DAT.Emb_reboota, &buf[index], _size-index-1);
@@ -722,7 +758,7 @@ int ZKHY_DeFrame_upload(struct ZKHY_Frame_upload* const _frame, const uint8_t da
         msg_len = DeFrame_Emb_boota(&_frame->DAT.Emb_boota, &data[index], data_len);
         break;
     case ZKHY_EMB_REBOOT:  // 复位设备
-        msg_len = 0;
+        msg_len = DeFrame_Emb_reboot(&_frame->DAT.Emb_reboot, &data[index], data_len);;
         break;
     case ZKHY_EMB_REBOOTA: // 复位设备状态
         msg_len = DeFrame_Emb_reboota(&_frame->DAT.Emb_reboota, &data[index], data_len);
