@@ -191,7 +191,7 @@ int main(void)
   //Flash_Test(0x08010000, 0x08020000);
   //flash_disk_init();
   //sram_disk_init();
-  ZKHY_Slave_upload_init();
+  ZKHY_Slave_upload_init(NULL);
   //SD_GetCardInfo(&cardinfo);
   BSP_SD_GetCardInfo(&cardinfo);
   app_debug("[%s--%d] Specifies the card Type :%d \r\n", __func__, __LINE__, cardinfo.CardType);

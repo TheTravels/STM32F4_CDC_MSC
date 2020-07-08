@@ -32,11 +32,11 @@ uint8_t bigend32_encode(uint8_t buf[], const uint32_t data)
     buf[3] = BYTE0(data);
     return 4;
 }
-uint16_t array32_encode(uint8_t buf[], const uint32_t data[], const uint8_t len)
+uint16_t array32_encode(const uint32_t array[], uint8_t buf[], const uint8_t len)
 {
     uint16_t index=0, i;
     index=0;
-    for(i=0; i<len; i++) index += bigend32_encode(&buf[index], data[i]);
+    for(i=0; i<len; i++) index += bigend32_encode(&buf[index], array[i]);
     return index; // len
 }
 

@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 // Flash Base Addr
-#define STM32_PARAM_BASE 0x0800C000
+//#define STM32_PARAM_BASE 0x0800C000
 extern uint16_t ParamTable_Size(void);
 extern int ParamTable_Write(const void *const Param, const uint32_t _size);
 extern int ParamTable_Read(void *const Param, const uint32_t _size);
@@ -29,6 +29,9 @@ extern uint16_t param_read_flash(uint8_t buf[], const uint32_t seek, const uint1
 
 extern uint16_t param_write_key(uint32_t _key[]);
 extern uint16_t param_read_key(uint32_t _key[]);
+
+extern const uint32_t param_flash_size;    // App 大小
+extern const uint32_t param_flash_start;      // App 地址
 
 #ifdef __cplusplus
 }

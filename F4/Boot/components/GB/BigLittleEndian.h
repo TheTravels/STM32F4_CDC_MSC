@@ -22,7 +22,7 @@
 // 大端编码 encode,返回数据长度
 extern uint8_t bigend16_encode(uint8_t buf[], const uint16_t data);
 extern uint8_t bigend32_encode(uint8_t buf[], const uint32_t data);
-extern uint16_t array32_encode(uint8_t buf[], const uint32_t data[], const uint8_t len);
+extern uint16_t array32_encode(const uint32_t array[], uint8_t buf[], const uint8_t len);
 // 大端合并 merge,返回数据
 extern uint16_t __bigend16_merge(const uint8_t byte0, const uint8_t byte1);
 extern uint32_t __bigend32_merge(const uint8_t byte0, const uint8_t byte1, const uint8_t byte2, const uint8_t byte3);

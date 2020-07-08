@@ -235,8 +235,8 @@ static inline int EnFrame_Emb_sync(const struct ZKHY_Frame_Emb_sync* const _info
 {
     uint16_t index=0;
     index=0;
-    index += array32_encode(&buf[index], _info->KK1, 4);
-    index += array32_encode(&buf[index], _info->KK2, 4);
+    index += array32_encode(_info->KK1, &buf[index], 4);
+    index += array32_encode(_info->KK2, &buf[index], 4);
     index += gb_cpy(&buf[index], _info->flag, sizeof (_info->flag));
     // buf 大小检查
     if(index>_size) return ZKHY_RESP_ERR_ENCODE_PACKL;
@@ -257,8 +257,8 @@ static inline int EnFrame_Emb_synca(const struct ZKHY_Frame_Emb_synca* const _in
 {
     uint16_t index=0;
     index=0;
-    index += array32_encode(&buf[index], _info->Kk1, 4);
-    index += array32_encode(&buf[index], _info->Kk3, 4);
+    index += array32_encode(_info->Kk1, &buf[index], 4);
+    index += array32_encode(_info->Kk3, &buf[index], 4);
     index += gb_cpy(&buf[index], _info->boot_ver, sizeof (_info->boot_ver));
     index += gb_cpy(&buf[index], _info->app_ver, sizeof (_info->app_ver));
     index += gb_cpy(&buf[index], _info->ID, sizeof (_info->ID));
@@ -324,7 +324,7 @@ static inline int EnFrame_Emb_write(const struct ZKHY_Frame_Emb_write* const _in
     }
     else if(EMB_STORE_KEY==_info->MemNum) // write key
     {
-        index += array32_encode(&buf[index], _info->key, 8);
+        index += array32_encode(_info->key, &buf[index], 8);
     }
     else index += gb_cpy(&buf[index], _info->data, _info->block);
     // buf 大小检查
@@ -348,7 +348,7 @@ static inline int DeFrame_Emb_write(struct ZKHY_Frame_Emb_write* const _info, co
     }
     else if(EMB_STORE_KEY==_info->MemNum) // write key
     {
-        index += array32_encode(&data[index], _info->key, 8);
+        index += array32_merge(_info->key, &data[index], 8);
     }
     else index += gb_cpy(_info->data, &data[index], _info->block);
     // buf 大小检查
@@ -412,7 +412,7 @@ static inline int EnFrame_Emb_reada(const struct ZKHY_Frame_Emb_reada* const _in
     index += bigend16_encode(&buf[index], _info->block);
     if(EMB_STORE_KEY==_info->MemNum) // write key
     {
-        index += array32_encode(&buf[index], _info->key, 8);
+        index += array32_encode(_info->key, &buf[index], 8);
     }
     else index += gb_cpy(&buf[index], _info->data, _info->block);
     // buf 大小检查
@@ -430,7 +430,7 @@ static inline int DeFrame_Emb_reada(struct ZKHY_Frame_Emb_reada* const _info, co
     index += bigend16_merge(&_info->block, data[index], data[index+1]);
     if(EMB_STORE_KEY==_info->MemNum) // write key
     {
-        index += array32_encode(&data[index], _info->key, 8);
+        index += array32_merge(_info->key, &data[index], 8);
     }
     else index += gb_cpy(_info->data, &data[index], _info->block);
     // buf 大小检查

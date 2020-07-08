@@ -18,6 +18,7 @@
 #include "Periphs/uart.h"
 #include "Periphs/ParamTable.h"
 #include "Periphs/Flash.h"
+#include "Periphs/crc.h"
 #include "tea/tea.h"
 #include "usb_device.h"
 //#include "obd/version.h"
@@ -36,7 +37,6 @@
 static const uint32_t def_key1[4]={0x01020304, 0x05060708, 0x090A0B0C, 0x0D0E0F10};
 static uint32_t pc_key2[4]={0x010DCF04, 0x0506BEA8, 0x09033B0C, 0x0D555F10};  // 随机密钥
 static uint32_t emb_key3[4]={0x010DCF04, 0x0506BEA8, 0x09033B0C, 0x0D555F10};   // 子密钥，通常位对方发过来的密钥
-struct ZKHY_Frame_Emb_write Emb_write;
 
 #ifdef ZKHY_DEV_FRAME_MASTER
 static char filename[128];
@@ -49,32 +49,81 @@ static uint8_t down_type=0;                    // 0:cfg, 1:fw
 static uint8_t down_map[1024/8];               // 下载映射表,1bit表示1block=1024byte
 
 static long app_size;
-static const char fw_app_path[] = "app/CCM3310S-T_Code.bin";
-char download_fw[2*1024*1024];
+//static const char fw_app_path[] = "app/CCM3310S-T_Code.bin";
+extern char download_fw[2*1024*1024];
+char Emb_fw_sha[20];
+
+uint32_t Emb_write_seek=0;         // 数据写入偏移
+uint32_t Emb_write_total=0;        // 数据写入总大小
+static uint16_t Emb_write_block;        // 数据写入长度,不能超过同步指令获取到的block大小
+
 
 static long fw_read_size(const char *const path, void * const _data);
-
+static void hash_sha1(const char *path, const uint32_t _size, char _sha[20])
+{
+    char app_fw[512];
+    const long block_size = 512;
+    long block,offset;
+    char sha1[20];
+    SHA1_CTX ctx;
+    //long _size_fd;
+    //_size_fd = file_read_size(path);
+    /* calculate hash */
+    SHA1Init(&ctx);
+    offset=0;
+    /*while(offset<_size_fd)
+    {
+        block = ((_size_fd-offset)>block_size?block_size:(_size_fd-offset));
+        memset(app_fw, 0xFF, sizeof(app_fw));
+        file_read_data_seek(path, app_size, offset, app_fw, block);
+        SHA1Update( &ctx, (unsigned char const *)app_fw, block);
+        offset += block;
+    }*/
+    while(offset<(long)_size)
+    {
+        block = (((long)_size-offset)>block_size?block_size:((long)_size-offset));
+        memset(app_fw, 0xFF, sizeof(app_fw));
+        file_read_data_seek(path, app_size, offset, app_fw, block);
+        SHA1Update( &ctx, (unsigned char const *)app_fw, block);
+        offset += block;
+    }
+    memset(sha1, 0, sizeof(sha1));
+    SHA1Final((unsigned char*)sha1, &ctx);
+    /*app_debug("const unsigned char calculate_hash_sha1[20]={");
+    for(i=0; i<20; i++)
+    {
+        app_debug("0x%02x,", sha1[i]&0xFF);
+    }
+    app_debug("};\r\n");*/
+    memcpy(_sha, sha1, sizeof (sha1));
+}
 #endif
 
-void ZKHY_Slave_upload_init(void)
+long ZKHY_Slave_upload_init(const char path[])
 {
 #ifdef ZKHY_DEV_FRAME_MASTER
-    char fw_sha[20];
+    //char fw_sha[20];
     tea_rand(pc_key2, 4); // 生成随机密钥
     tea_rand(emb_key3, 4); // 生成随机密钥
-    memset(download_fw, 0, sizeof(download_fw));
-    app_size = fw_read_size(fw_app_path, download_fw);
-
+    memset(download_fw, 0xFF, sizeof(download_fw));
+    //app_size = fw_read_size(fw_app_path, download_fw);
+    app_size = fw_read_size(path, download_fw);
+    app_debug("[%s-%d] app_size:%d \r\n", __func__, __LINE__, app_size);
+    app_debug("[%s-%d] app_size&0x1FF:%d \r\n", __func__, __LINE__, app_size&0x1FF);
     // 对齐
     if((app_size&0x1FF)>0) app_size = app_size-(app_size&0x1FF) + 512;
     if(app_size>512*1024) app_size=512*1024;
     app_debug("[%s-%d] app_size:%d \r\n", __func__, __LINE__, app_size);
-    memset(fw_sha, 0, sizeof(fw_sha));
-    calculate_hash_sha1(fw_app_path, app_size, fw_sha);
+    memset(Emb_fw_sha, 0, sizeof(Emb_fw_sha));
+    //calculate_hash_sha1(fw_app_path, app_size, Emb_fw_sha);
+    hash_sha1(path, app_size, Emb_fw_sha);
+    Emb_write_total = app_size;
+    return app_size;
 #endif
 
 #ifdef ZKHY_DEV_FRAME_SLAVE
     tea_rand(emb_key3, 4); // 生成随机密钥
+    return 0;
 #endif
 }
 
@@ -175,126 +224,6 @@ int ZKHY_Dev_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKH
         break;
     case ZKHY_UPLOAD_FWB_ACK:      // 下发固件块信息
         break;
-        /******************* 嵌入式升级 ********************/
-    case ZKHY_EMB_SYNC:    // 设备同步
-    {
-        struct ZKHY_Frame_Emb_sync* const _sync = &_frame->DAT.Emb_sync;
-        memcpy(_sync->KK1, def_key1, sizeof(_sync->KK1));
-        memcpy(_sync->KK2, pc_key2, sizeof(_sync->KK2));
-        //app_debug("[%s--%d]  K1:[0x%08X 0x%08X 0x%08X 0x%08X]\r\n", __func__, __LINE__, def_key1[0], def_key1[1], def_key1[2], def_key1[3]);
-        //app_debug("[%s--%d] KK1:[0x%08X 0x%08X 0x%08X 0x%08X]\r\n", __func__, __LINE__, _sync->KK1[0], _sync->KK1[1], _sync->KK1[2], _sync->KK1[3]);
-        //app_debug("[%s--%d] KK2:[0x%08X 0x%08X 0x%08X 0x%08X]\r\n", __func__, __LINE__, _sync->KK2[0], _sync->KK2[1], _sync->KK2[2], _sync->KK2[3]);
-        // K1密文，协商密钥
-        tea_encrypt(_sync->KK1, sizeof(_sync->KK1), pc_key2, ZKHY_emb_iteration);
-        // K2密文PC端密钥
-        tea_encrypt(_sync->KK2, sizeof(_sync->KK2), def_key1, ZKHY_emb_iteration);
-        //app_debug("[%s--%d] KK1:[0x%08X 0x%08X 0x%08X 0x%08X]\r\n", __func__, __LINE__, _sync->KK1[0], _sync->KK1[1], _sync->KK1[2], _sync->KK1[3]);
-        //app_debug("[%s--%d] KK2:[0x%08X 0x%08X 0x%08X 0x%08X]\r\n", __func__, __LINE__, _sync->KK2[0], _sync->KK2[1], _sync->KK2[2], _sync->KK2[3]);
-        // 以0x7F填充，作为同步检测标志，主要用于手动获取设备版本信息
-        memset(_sync->flag, 0x7F, sizeof(_sync->flag));
-    }
-        break;
-    case ZKHY_EMB_SYNCA:   // 设备同步响应
-    {
-        struct ZKHY_Frame_Emb_synca* const _synca = &_frame->DAT.Emb_synca;
-        memcpy(_synca->Kk1, def_key1, sizeof(_synca->Kk1));
-        memcpy(_synca->Kk3, emb_key3, sizeof(_synca->Kk3));
-        // K1密文，协商密钥
-        tea_encrypt(_synca->Kk1, sizeof(_synca->Kk1), def_key1, ZKHY_emb_iteration);
-        // K2密文PC端密钥
-        tea_encrypt(_synca->Kk3, sizeof(_synca->Kk3), pc_key2, ZKHY_emb_iteration);
-#ifndef ZKHY_DEV_FRAME_SLAVE
-        memset(_synca->boot_ver, 0x7F, sizeof(_synca->boot_ver));
-        memset(_synca->app_ver, 0x7F, sizeof(_synca->app_ver));
-        memset(_synca->ID, 0x7F, sizeof(_synca->ID));
-#else
-        memset(_synca->boot_ver, 0x7F, sizeof(_synca->boot_ver));
-#endif
-        _synca->crc = 0;
-        _synca->block = 1024;
-    }
-        break;
-    case ZKHY_EMB_ERASE:   // 擦除设备
-        _frame->DAT.Emb_erase.MemNum = Emb_write.MemNum;  // flash
-        break;
-    case ZKHY_EMB_ERASEA:  // 擦除设备状态
-    {
-        struct ZKHY_Frame_Emb_erasea* const _erasea = &_frame->DAT.Emb_erasea;
-        _erasea->MemNum = Emb_write.MemNum;
-        _erasea->volume = 1024;
-        _erasea->erase = 1024;
-        _erasea->status = 0;
-    }
-        break;
-    case ZKHY_EMB_WRITE:   // 分包写入
-    {
-        struct ZKHY_Frame_Emb_write* const _write = &_frame->DAT.Emb_write;
-        _write->MemNum = Emb_write.MemNum;
-        _write->total = Emb_write.total;
-        _write->seek = Emb_write.seek;
-        Emb_write.seek += Emb_write.block;
-        _write->block = Emb_write.block;
-        if((EMB_STORE_UART==Emb_write.MemNum) && (0==_write->total))
-        {
-            _write->uart.BaudRate = Emb_write.uart.BaudRate;
-            _write->uart.DataWidth = Emb_write.uart.DataWidth;
-            _write->uart.StopBits = Emb_write.uart.StopBits;
-            _write->uart.Parity = Emb_write.uart.Parity;
-        }
-        else memcpy(_write->data, &download_fw[_write->seek], _write->block);
-    }
-        break;
-    case ZKHY_EMB_WRITEA:  // 分包写入状态
-    {
-        struct ZKHY_Frame_Emb_writea* const _writea = &_frame->DAT.Emb_writea;
-        _writea->MemNum = Emb_write.MemNum;
-        _writea->volume = 1024;
-        _writea->write = Emb_write.seek;
-        _writea->status = 0;
-    }
-        break;
-    case ZKHY_EMB_READ:    // 分包读取
-    {
-        struct ZKHY_Frame_Emb_read* const _read = &_frame->DAT.Emb_read;
-        _read->MemNum = Emb_write.MemNum;
-        _read->seek = Emb_write.seek;
-        _read->block = Emb_write.block;
-    }
-        break;
-    case ZKHY_EMB_READA:   // 分包读取返回数据
-    {
-        struct ZKHY_Frame_Emb_reada* const _reada = &_frame->DAT.Emb_reada;
-        _reada->volume = Emb_write.MemNum;
-        _reada->status = 0;
-        _reada->seek = 1024;
-        _reada->block = 1024;
-        memset(_reada->data, 0x7F, sizeof(_reada->data));
-    }
-        break;
-    case ZKHY_EMB_BOOT:    // 引导 APP
-    {
-        struct ZKHY_Frame_Emb_boot* const _boot = &_frame->DAT.Emb_boot;
-        _boot->total = 0x12345678;
-        _boot->crc = 0x12345678;
-        memset(_boot->data, 0x7F, sizeof(_boot->data));
-    }
-        break;
-    case ZKHY_EMB_BOOTA:   // 引导 APP状态
-    {
-        struct ZKHY_Frame_Emb_boota* const _boota = &_frame->DAT.Emb_boota;
-        _boota->status = 0x00; // 状态：0成功、1固件错误、2校验失败、3其它错误
-        memset(_boota->info, 0x00, sizeof(_boota->info));
-    }
-        break;
-    case ZKHY_EMB_REBOOT:  // 复位设备
-        break;
-    case ZKHY_EMB_REBOOTA: // 复位设备状态
-    {
-        struct ZKHY_Frame_Emb_reboota* const _reboota = &_frame->DAT.Emb_reboota;
-        _reboota->status = 0x00; // 状态：0成功、1不支持复位、2其它错误
-        memset(_reboota->info, 0x00, sizeof(_reboota->info));
-    }
-        break;
     default:
         return ZKHY_RESP_ERR_CMD;
         break;
@@ -303,6 +232,7 @@ int ZKHY_Dev_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKH
     return enlen;
 }
 // _sub_cmd:读写命令有子命令
+extern char Emb_fw_sha[20];
 int ZKHY_Dev_Frame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, const enum Emb_Store_number _sub_cmd, const union upload_Emb_Arg* const Arg, uint8_t _buf[], const uint16_t _bsize)
 {
     int enlen;
@@ -331,84 +261,57 @@ int ZKHY_Dev_Frame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const enum
         memset(_sync->flag, 0x7F, sizeof(_sync->flag));
     }
         break;
-    case ZKHY_EMB_SYNCA:   // 设备同步响应
-    {
-        struct ZKHY_Frame_Emb_synca* const _synca = &_frame->DAT.Emb_synca;
-        memcpy(_synca->Kk1, def_key1, sizeof(_synca->Kk1));
-        memcpy(_synca->Kk3, emb_key3, sizeof(_synca->Kk3));
-        // K1密文，协商密钥
-        tea_encrypt(_synca->Kk1, sizeof(_synca->Kk1), def_key1, ZKHY_emb_iteration);
-        // K2密文PC端密钥
-        tea_encrypt(_synca->Kk3, sizeof(_synca->Kk3), pc_key2, ZKHY_emb_iteration);
-#ifndef ZKHY_DEV_FRAME_SLAVE
-        memset(_synca->boot_ver, 0x7F, sizeof(_synca->boot_ver));
-        memset(_synca->app_ver, 0x7F, sizeof(_synca->app_ver));
-        memset(_synca->ID, 0x7F, sizeof(_synca->ID));
-#else
-        memset(_synca->boot_ver, 0x7F, sizeof(_synca->boot_ver));
-#endif
-        _synca->crc = 0;
-        _synca->block = 1024;
-    }
-        break;
     case ZKHY_EMB_ERASE:   // 擦除设备
-        _frame->DAT.Emb_erase.MemNum = Emb_write.MemNum;  // flash
+        _frame->DAT.Emb_erase.MemNum = _sub_cmd;  // flash
         break;
-    case ZKHY_EMB_ERASEA:  // 擦除设备状态
-    {
-        struct ZKHY_Frame_Emb_erasea* const _erasea = &_frame->DAT.Emb_erasea;
-        _erasea->MemNum = Emb_write.MemNum;
-        _erasea->volume = 1024;
-        _erasea->erase = 1024;
-        _erasea->status = 0;
-    }
         break;
     case ZKHY_EMB_WRITE:   // 分包写入
     {
         struct ZKHY_Frame_Emb_write* const _write = &_frame->DAT.Emb_write;
         _write->MemNum = _sub_cmd;
-        _write->total = Emb_write.total;
-        _write->seek = Emb_write.seek;
-        _write->block = Emb_write.block;
+        _write->total = Emb_write_total;
+        _write->seek = Emb_write_seek;
         switch(_sub_cmd)
         {
         case EMB_STORE_FLASH:     // 读写入固件
-            Emb_write.seek += Emb_write.block;
+            _write->block = _write->total-_write->seek;
+            _write->block = Emb_write_block;
+            if(_write->block>Emb_write_block) _write->block = Emb_write_block;
+            //memcpy(_write->data, &download_fw[Emb_write_seek], Emb_write_block);
+            memcpy(_write->data, &download_fw[_write->seek], _write->block);
+            //Emb_write_seek += Emb_write_block;
             break;
         case EMB_STORE_OTP:
-            _write->total = Emb_write.total;
+            _write->total = Emb_write_total;
             _write->seek = 0;
-            _write->block = Emb_write.block;
-            break;
-        case EMB_STORE_UID:       // 芯片ID
-            _write->total = Emb_write.total;
-            _write->seek = 0;
-            _write->block = Emb_write.block;
+            _write->block = Emb_write_block;
             break;
         case EMB_STORE_KEY:       // 读写入的密钥
-            _write->total = Emb_write.total;
+            _write->total = Emb_write_total;
             _write->seek = 0;
             memset(_write->key, 0x12, sizeof(_write->key));
             _write->block = sizeof(_write->key);
             break;
         case EMB_STORE_PARAM:     // 读参数表
-            _write->total = Emb_write.total;
+            _write->total = Emb_write_total;
             _write->seek = 0;
             _write->block = strlen((char*)Arg->param);
             if(_write->block>sizeof(Arg->param)) _write->block=sizeof(Arg->param);
             memcpy(_write->data, Arg->param, _write->block);
             break;
         case EMB_STORE_UART:  // 读串口, seek为串口号
-            //if((EMB_STORE_UART==Emb_write.MemNum) && (0==_write->total))
+            //if((EMB_STORE_UART==Emb_write_MemNum) && (0==_write->total))
+            _write->block = Arg->at.len;
             if(0==_write->total)
             {
-                _write->uart.BaudRate = Emb_write.uart.BaudRate;
-                _write->uart.DataWidth = Emb_write.uart.DataWidth;
-                _write->uart.StopBits = Emb_write.uart.StopBits;
-                _write->uart.Parity = Emb_write.uart.Parity;
+                _write->uart.BaudRate = Arg->uart.BaudRate;
+                _write->uart.DataWidth = Arg->uart.DataWidth;
+                _write->uart.StopBits = Arg->uart.StopBits;
+                _write->uart.Parity = Arg->uart.Parity;
             }
-            else memcpy(_write->data, &download_fw[_write->seek], _write->block);
+            else memcpy(_write->data, Arg->at.data, _write->block);
             break;
+        case EMB_STORE_UID:       // 芯片ID
         case EMB_STORE_FLASI_SPI:
         case EMB_STORE_FLASH_SDIO:
         case EMB_STORE_ROM1:
@@ -423,46 +326,36 @@ int ZKHY_Dev_Frame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const enum
         }
     }
         break;
-    case ZKHY_EMB_WRITEA:  // 分包写入状态
-    {
-        struct ZKHY_Frame_Emb_writea* const _writea = &_frame->DAT.Emb_writea;
-        Emb_write.MemNum = _sub_cmd;
-        _writea->MemNum = Emb_write.MemNum;
-        _writea->volume = Emb_write.block;
-        _writea->write = Emb_write.seek;
-        _writea->status = 0;
-    }
-        break;
     case ZKHY_EMB_READ:    // 分包读取
     {
         struct ZKHY_Frame_Emb_read* const _read = &_frame->DAT.Emb_read;
-        Emb_write.MemNum = _sub_cmd;
-        _read->MemNum = Emb_write.MemNum;
-        _read->seek = Emb_write.seek;
-        _read->block = Emb_write.block;
+        //Emb_write_MemNum = _sub_cmd;
+        _read->MemNum = _sub_cmd;
+        _read->seek = Emb_write_seek;
+        _read->block = Emb_write_block;
         switch(_sub_cmd)
         {
         case EMB_STORE_FLASH:     // 读写入固件
             break;
         case EMB_STORE_OTP:
             _read->seek = 0;
-            _read->block = Emb_write.block;
+            _read->block = Emb_write_block;
             break;
         case EMB_STORE_UID:       // 芯片ID
             _read->seek = 0;
-            _read->block = Emb_write.block;
+            _read->block = Emb_write_block;
             break;
         case EMB_STORE_KEY:       // 读写入的密钥
             _read->seek = 0;
-            _read->block = Emb_write.block;
+            _read->block = Emb_write_block;
             break;
         case EMB_STORE_PARAM:     // 读参数表
             _read->seek = 0;
-            _read->block = Emb_write.block;
+            _read->block = Emb_write_block;
             break;
         case EMB_STORE_UART:  // 读串口, seek为串口号
             _read->seek = 1;
-            _read->block = Emb_write.block;
+            _read->block = Emb_write_block;
             break;
         case EMB_STORE_FLASI_SPI:
         case EMB_STORE_FLASH_SDIO:
@@ -477,29 +370,15 @@ int ZKHY_Dev_Frame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const enum
         }
     }
         break;
-    case ZKHY_EMB_READA:   // 分包读取返回数据
-    {
-        struct ZKHY_Frame_Emb_reada* const _reada = &_frame->DAT.Emb_reada;
-        _reada->volume = Emb_write.MemNum;
-        _reada->status = 0;
-        _reada->seek = 1024;
-        _reada->block = 1024;
-        memset(_reada->data, 0x7F, sizeof(_reada->data));
-    }
-        break;
     case ZKHY_EMB_BOOT:    // 引导 APP
     {
         struct ZKHY_Frame_Emb_boot* const _boot = &_frame->DAT.Emb_boot;
-        _boot->total = 0x12345678;
-        _boot->crc = 0x12345678;
-        memset(_boot->data, 0x7F, sizeof(_boot->data));
-    }
-        break;
-    case ZKHY_EMB_BOOTA:   // 引导 APP状态
-    {
-        struct ZKHY_Frame_Emb_boota* const _boota = &_frame->DAT.Emb_boota;
-        _boota->status = 0x00; // 状态：0成功、1固件错误、2校验失败、3其它错误
-        memset(_boota->info, 0x00, sizeof(_boota->info));
+        unsigned short crc16 = 0;
+        crc16 = 0;
+        crc16 = fast_crc16(crc16, (unsigned char *)download_fw, app_size);
+        _boot->total = Emb_write_total;
+        _boot->crc = crc16;
+        memcpy(_boot->data, Emb_fw_sha, sizeof(_boot->data));
     }
         break;
     case ZKHY_EMB_REBOOT:  // 复位设备
@@ -507,13 +386,6 @@ int ZKHY_Dev_Frame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const enum
         struct ZKHY_Frame_Emb_reboot* const _reboot = &_frame->DAT.Emb_reboot;
         _reboot->C1 = 0xA5A5A5A5;
         _reboot->C2 = 0x5A5A5A5A;
-    }
-        break;
-    case ZKHY_EMB_REBOOTA: // 复位设备状态
-    {
-        struct ZKHY_Frame_Emb_reboota* const _reboota = &_frame->DAT.Emb_reboota;
-        _reboota->status = 0x00; // 状态：0成功、1不支持复位、2其它错误
-        memset(_reboota->info, 0x00, sizeof(_reboota->info));
     }
         break;
     default:
@@ -798,75 +670,58 @@ int ZKHY_Dev_unFrame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const en
         //app_debug("[%s--%d] CRC:0x%08X _synca->block:%d \r\n", __func__, __LINE__, _synca->crc, _synca->block);
         // 匹配密钥
         if(0!=memcmp(K1, def_key1, sizeof(def_key1))) suc = ZKHY_RESP_SUC;
-        Emb_write.block = _synca->block;
+        Emb_write_block = _synca->block;
+        Emb_write_seek = 0;
     }
-        break;
-    case ZKHY_EMB_ERASE:   // 擦除设备
-        _frame->DAT.Emb_erase.MemNum = Emb_write.MemNum;  // flash
         break;
     case ZKHY_EMB_ERASEA:  // 擦除设备状态
     {
         struct ZKHY_Frame_Emb_erasea* const _erasea = &_frame->DAT.Emb_erasea;
-        _erasea->MemNum = Emb_write.MemNum;
+        //_erasea->MemNum = _sub_cmd;
         _erasea->volume = 1024;
         _erasea->erase = 1024;
         _erasea->status = 0;
     }
         break;
-    case ZKHY_EMB_WRITE:   // 分包写入
-    {
-        struct ZKHY_Frame_Emb_write* const _write = &_frame->DAT.Emb_write;
-        _write->MemNum = Emb_write.MemNum;
-        _write->total = Emb_write.total;
-        _write->seek = Emb_write.seek;
-        Emb_write.seek += Emb_write.block;
-        _write->block = Emb_write.block;
-        if((EMB_STORE_UART==Emb_write.MemNum) && (0==_write->total))
-        {
-            _write->uart.BaudRate = Emb_write.uart.BaudRate;
-            _write->uart.DataWidth = Emb_write.uart.DataWidth;
-            _write->uart.StopBits = Emb_write.uart.StopBits;
-            _write->uart.Parity = Emb_write.uart.Parity;
-        }
-        else memcpy(_write->data, &download_fw[_write->seek], _write->block);
-    }
         break;
     case ZKHY_EMB_WRITEA:  // 分包写入状态
     {
         struct ZKHY_Frame_Emb_writea* const _writea = &_frame->DAT.Emb_writea;
-        _writea->MemNum = Emb_write.MemNum;
-        _writea->volume = 1024;
-        _writea->write = Emb_write.seek;
-        _writea->status = 0;
+#if 0
+        app_debug("[%s--%d] _writea->MemNum:%d\r\n", __func__, __LINE__, _writea->MemNum);
+        app_debug("[%s--%d] _writea->volume:%d\r\n", __func__, __LINE__, _writea->volume);
+        app_debug("[%s--%d] _writea->write:%d\r\n", __func__, __LINE__, _writea->write);
+        app_debug("[%s--%d] _writea->status:%d\r\n", __func__, __LINE__, _writea->status);
+#endif
+        suc = ZKHY_RESP_ERR_UNDATA;
+        if(0==_writea->status)
+        {
+            suc = ZKHY_RESP_ERR_UPLOAD;
+            Emb_write_seek = _writea->write;
+            // 下载完成
+            if(Emb_write_seek==Emb_write_total) suc = ZKHY_RESP_SUC;
+        }
     }
         break;
     case ZKHY_EMB_READA:   // 分包读取返回数据
     {
+#if 0
         struct ZKHY_Frame_Emb_reada* const _reada = &_frame->DAT.Emb_reada;
-//        app_debug("[%s--%d] _reada->MemNum:%d\r\n", __func__, __LINE__, _reada->MemNum);
-//        app_debug("[%s--%d] _reada->volume:%d\r\n", __func__, __LINE__, _reada->volume);
-//        app_debug("[%s--%d] _reada->status:%d\r\n", __func__, __LINE__, _reada->status);
-//        app_debug("[%s--%d] _reada->seek:%d\r\n", __func__, __LINE__, _reada->seek);
-//        app_debug("[%s--%d] _reada->block:%d\r\n", __func__, __LINE__, _reada->block);
+        app_debug("[%s--%d] _reada->MemNum:%d\r\n", __func__, __LINE__, _reada->MemNum);
+        app_debug("[%s--%d] _reada->volume:%d\r\n", __func__, __LINE__, _reada->volume);
+        app_debug("[%s--%d] _reada->status:%d\r\n", __func__, __LINE__, _reada->status);
+        app_debug("[%s--%d] _reada->seek:%d\r\n", __func__, __LINE__, _reada->seek);
+        app_debug("[%s--%d] _reada->block:%d\r\n", __func__, __LINE__, _reada->block);
+#endif
         suc = ZKHY_RESP_SUC;
-    }
-        break;
-    case ZKHY_EMB_BOOT:    // 引导 APP
-    {
-        struct ZKHY_Frame_Emb_boot* const _boot = &_frame->DAT.Emb_boot;
-        _boot->total = 0x12345678;
-        _boot->crc = 0x12345678;
-        memset(_boot->data, 0x7F, sizeof(_boot->data));
     }
         break;
     case ZKHY_EMB_BOOTA:   // 引导 APP状态
     {
         struct ZKHY_Frame_Emb_boota* const _boota = &_frame->DAT.Emb_boota;
-        _boota->status = 0x00; // 状态：0成功、1固件错误、2校验失败、3其它错误
-        memset(_boota->info, 0x00, sizeof(_boota->info));
+        //_boota->status = 0x00; // 状态：0成功、1固件错误、2校验失败、3其它错误
+        suc = ZKHY_RESP_SUC;
     }
-        break;
-    case ZKHY_EMB_REBOOT:  // 复位设备
         break;
     case ZKHY_EMB_REBOOTA: // 复位设备状态
     {
@@ -888,6 +743,7 @@ int ZKHY_Dev_unFrame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const en
 #ifdef ZKHY_DEV_FRAME_SLAVE
 #include "version.h"
 // 编码帧
+#if 0
 int ZKHY_Slave_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, uint8_t _buf[], const uint16_t _bsize)
 {
     int enlen;
@@ -1000,6 +856,7 @@ int ZKHY_Slave_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum Z
     enlen = ZKHY_EnFrame_upload(_frame, _buf, _bsize);
     return enlen;
 }
+#endif
 // 用于返回数据
 static uint8_t _ccm bl_buf[1024*4];
 static uint8_t read_uid(uint8_t uid[])
@@ -1010,6 +867,8 @@ static uint8_t read_uid(uint8_t uid[])
 }
 //解码帧
 extern USBD_StatusTypeDef USBD_DeInit(USBD_HandleTypeDef *pdev);
+// 用于在升级固件的时候保存中断向量表信息
+static uint32_t pfnVectors[2]={0x00, 0x00};
 int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uint8_t data[], const uint16_t _dsize, int (*const send_func)(const uint8_t data[], const uint32_t _size))
 {
 	int enlen;
@@ -1099,7 +958,7 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
         	_erasea->volume = 256*1024;
         	_erasea->erase = 256*1024;
         	_erasea->status = 0;
-        	FLASH_Erase(0x08040000, 0x08080000-1);
+        	FLASH_Erase(param_flash_start, param_flash_start+param_flash_size-1);
         }
         else
         {
@@ -1131,9 +990,26 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
             switch(Write.MemNum)
             {
             case EMB_STORE_FLASH:     // 读写入固件
+            {
+            	int len = 0;
             	_writea->volume = 256*1024;
-            	_writea->status = 4;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
-            	_writea->write = param_write_flash(Write.data, Write.seek, Write.block);
+            	if(0==Write.seek) // 保存中断向量表
+            	{
+            		memcpy(pfnVectors, Write.data, 8);
+            		memset(Write.data, 0xFF, 8);
+            	}
+            	len = param_write_flash(Write.data, Write.seek, Write.block);
+            	if(len==Write.block)
+            	{
+                	_writea->status = 0;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
+                	_writea->write = Write.seek + Write.block;
+            	}
+            	else
+            	{
+                	_writea->status = 4;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
+                	_writea->write = Write.seek;
+            	}
+            }
             	break;
             case EMB_STORE_OTP:
             	_writea->volume = 0;
@@ -1291,10 +1167,36 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     break;
     case ZKHY_EMB_BOOT:    // 引导 APP
     {
-        struct ZKHY_Frame_Emb_boot* const _boot = &_frame->DAT.Emb_boot;
-        _boot->total = 0x12345678;
-        _boot->crc = 0x12345678;
-        memset(_boot->data, 0x7F, sizeof(_boot->data));
+    	struct ZKHY_Frame_Emb_boot Boot;
+    	memcpy(&Boot, &_frame->DAT.Emb_boot, sizeof(struct ZKHY_Frame_Emb_boot));
+        struct ZKHY_Frame_Emb_boota* const _boota = &_frame->DAT.Emb_boota;
+        memset(_frame, 0, sizeof(struct ZKHY_Frame_upload));
+        ZKHY_frame_upload_init(_frame, ZKHY_EMB_WRITEA);
+        unsigned short crc16 = 0;
+        crc16 = 0;
+        crc16 = fast_crc16(crc16, (const unsigned char*)pfnVectors, 8);
+        crc16 = fast_crc16(crc16, (const unsigned char*)(param_flash_start+8), Boot.total-8);
+        if(Boot.crc==crc16)
+        {
+        	Flash_Write_Force(param_flash_start, pfnVectors, 8);
+        	_boota->status = 0x00; // 状态：0成功、1固件错误、2校验失败、3其它错误
+            memset(bl_buf, 0, sizeof(bl_buf));
+            enlen = ZKHY_EnFrame_upload(_frame, bl_buf, sizeof(bl_buf));
+            if((NULL!=send_func) && (enlen>0))
+            {
+            	app_debug("[%s--%d] ACK:%d\r\n", __func__, __LINE__, enlen);
+            	send_func(bl_buf, enlen);
+            	HAL_Delay(500); // 100 B
+            	USBD_DeInit(&hUsbDeviceFS);
+            }
+        	// boot
+        }
+        else
+        {
+        	const char info[] = "Reset instruction error!";
+        	_boota->status = 0x02; // 状态：0成功、1固件错误、2校验失败、3其它错误
+            memcpy(_boota->info, info, sizeof(info));
+        }
     }
     break;
     case ZKHY_EMB_BOOTA:   // 引导 APP状态

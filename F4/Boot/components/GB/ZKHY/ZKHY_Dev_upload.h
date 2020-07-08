@@ -200,9 +200,12 @@ struct ZKHY_Frame_Emb_erasea{
 // 分包写入
 struct ZKHY_Frame_Emb_write{
     enum Emb_Store_number MemNum;        // 存储区编号，见附录D
+    //uint32_t seek;         // 数据写入偏移
+    //uint32_t total;        // 数据写入总大小
+    uint16_t block;        // 数据写入长度,不能超过同步指令获取到的block大小
+    // 调整位置,为了让编译器对齐 data
     uint32_t seek;         // 数据写入偏移
     uint32_t total;        // 数据写入总大小
-    uint16_t block;        // 数据写入长度,不能超过同步指令获取到的block大小
     union{
         uint8_t data[1024];       // 写入的数据,block字节
         struct{
@@ -309,13 +312,17 @@ struct ZKHY_Frame_upload{
 
 union upload_Emb_Arg{
     //char sn[32]; // 烧号
-    char param[256];      // 参数表
-    struct{      // 串口配置参数
+    char param[256];          // 参数表
+    struct{                   // 串口配置参数
         uint32_t BaudRate;    // 波特率,范围:1000bps-460800bps
         uint8_t DataWidth;    // 数据宽度,取值: 8 8位, 9 9位
         uint8_t StopBits;     // 停止位,取值: 1 1位停止位, 2 2位停止位
         uint8_t Parity;       // 奇偶校验,取值：0 disabled, 1 Even Parity, 2 Odd Parity
     }uart;
+    struct{                   // AT 指令
+        char data[1024];      // AT 指令
+        uint16_t len;
+    }at;
 };
 
 // 编码一帧数据
@@ -335,14 +342,14 @@ static inline int ZKHY_frame_upload_init(struct ZKHY_Frame_upload* const _frame,
     return 0;
 }
 
-extern void ZKHY_Slave_upload_init(void);
+extern long ZKHY_Slave_upload_init(const char path[]);
 extern int ZKHY_Dev_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, uint8_t _buf[], const uint16_t _bsize);
 // _sub_cmd:读写命令有子命令
 extern int ZKHY_Dev_Frame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, const enum Emb_Store_number _sub_cmd, const union upload_Emb_Arg* const Arg, uint8_t _buf[], const uint16_t _bsize);
 extern int ZKHY_Dev_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, const  uint8_t data[], const uint16_t _dsize);
 // 嵌入式升级
 extern int ZKHY_Dev_unFrame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, const  uint8_t data[], const uint16_t _dsize);
-extern int ZKHY_Slave_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, uint8_t _buf[], const uint16_t _bsize);
+//extern int ZKHY_Slave_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum ZKHY_cmd_Upload cmd, uint8_t _buf[], const uint16_t _bsize);
 extern int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uint8_t data[], const uint16_t _dsize, int (*const send_func)(const uint8_t data[], const uint32_t _size));
 
 // 编解码测试

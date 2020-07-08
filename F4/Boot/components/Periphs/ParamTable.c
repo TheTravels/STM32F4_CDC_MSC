@@ -46,14 +46,17 @@ int ParamTable_Read(void *const Param, const uint32_t _size)
 
 //#define FLASH_SECTOR_ADDR_MAP     ((uint32_t)0x08040000) 	// 128 Kbytes
 //#define ADDR_FLASH_SECTOR_8     ((uint32_t)0x08080000) 	// 128 Kbytes
+const uint32_t param_flash_size = (64+128)*1024;    // App 大小
+const uint32_t param_flash_start = 0x08010000;      // App 地址
 uint16_t param_write_flash(const uint8_t buf[], const uint32_t seek, const uint16_t block)
 {
-	return 0;
+	if(0==Flash_Write_Force(param_flash_start+seek, (const uint32_t *)buf, block)) return 0;
+	return block;
 }
 uint16_t param_read_flash(uint8_t buf[], const uint32_t seek, const uint16_t block)
 {
-	const char* const flash_addr_start = (const char*)(0x08040000+seek);
-	const char* const flash_addr_end = (const char*)0x08080000;
+	const char* const flash_addr_start = (const char*)(param_flash_start+seek);
+	const char* const flash_addr_end = (const char*)(param_flash_start+param_flash_size);
 	if((flash_addr_start+block)<flash_addr_end)
 	{
 		memcpy(buf, flash_addr_start, block);
