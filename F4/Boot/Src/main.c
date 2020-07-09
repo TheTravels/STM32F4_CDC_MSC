@@ -120,6 +120,7 @@ uint8_t SD_GetCardInfo(HAL_SD_CardInfoTypeDef *cardinfo)
 
 static uint8_t _ccm bl_data[1024*4];
 extern void HAL_SD_MspDeInit(SD_HandleTypeDef* sdHandle);
+extern void boot_app(void);
 void Periphs_DeInit(void)
 {
 	USBD_DeInit(&hUsbDeviceFS);
@@ -135,6 +136,30 @@ void Periphs_DeInit(void)
 	HAL_GPIO_DeInit(PWR_EN_4G_GPIO_Port, PWR_EN_4G_Pin);
 }
 
+int check_bl(uint8_t _buf[], const uint16_t _bsize, int (*const read_func)(uint8_t buf[], const uint32_t _size))
+{
+	int count;
+	int index;
+	int len;
+	if(NULL==read_func) return -1;
+	memset(_buf, 0, _bsize);
+    len = read_func(_buf, 1);
+    if(len>0)
+    {
+    	HAL_Delay(50);
+    	len += read_func(&_buf[len], _bsize-len);
+        // 检索连续的 0x7F
+    	count = 0;
+        for(index=0; index<len; index++)
+        {
+        	if(0x7F==_buf[index]) count++;
+        	else count = 0;
+        }
+        if(count>32) return 0;
+    }
+    return -2;
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -147,7 +172,7 @@ int main(void)
 	static uint8_t send_buf[256];
     int len=0;
     int bl_len;
-    HAL_SD_CardInfoTypeDef cardinfo;
+    //HAL_SD_CardInfoTypeDef cardinfo;
 //    int ret = 0;
 //    uint32_t data[3]={0x123456AB, 0x12CD4568, 0x1256EF34};
     //int ch=-1;
@@ -173,7 +198,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   //MX_USB_DEVICE_Init();
-  MX_SDIO_SD_Init();
+  //MX_SDIO_SD_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_USART3_UART_Init();
@@ -183,21 +208,53 @@ int main(void)
   //USART2_Init(115200);
   //USART3_Init(115200);
   //MX_FATFS_Init();
-  SD_initialize(0);
+  //SD_initialize(0);
   //fs_test();
   //fs_test_sdio();
   //MX_USB_DEVICE_Init();
   //SHA1(NULL, "Hello", 5); // -Os Optimize code, add code 4K
   LL_GPIO_ResetOutputPin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
-  fs_test();
+  //fs_test(); // 格式化 Flash
   memset(send_buf, 0, sizeof(send_buf));
   // 利用 flash的写 0特点擦除原有数据
   //len = Flash_Write_Force(0x08000200, (uint32_t *)send_buf, 8);
   app_debug("[%s--%d] len:%d \r\n", __func__, __LINE__, len);
   led_tick = HAL_GetTick() + 200;
-  HAL_Delay(200);  // delay, check VBUS
+  //HAL_Delay(200);  // delay, check VBUS
   app_debug("[%s--%d] system start!\r\n", __func__, __LINE__);
   app_debug("[%s--%d] Ver[%d | 0x%08X]:%s\r\n", __func__, __LINE__, sizeof(Emb_Version), &Emb_Version, Emb_Version.version);
+  // 检测是否需要升级
+  for(bl_len=0; bl_len<100; bl_len++)
+  {
+	  HAL_Delay(10);
+	  if((0==vbus_connect) && (vbus_high_count>100)) // usb connect
+	  {
+		  bl_len=0;
+		  break;
+	  }
+	  if(0==check_bl(send_buf, sizeof(send_buf), uart1_read))
+	  {
+		  bl_len=0;
+		  break;
+	  }
+	  if(0==check_bl(send_buf, sizeof(send_buf), uart2_read))
+	  {
+		  bl_len=0;
+		  break;
+	  }
+	  if(0==check_bl(send_buf, sizeof(send_buf), uart3_read))
+	  {
+		  bl_len=0;
+		  break;
+	  }
+  }
+  app_debug("[%s--%d] bl_len:%d \r\n", __func__, __LINE__, bl_len);
+  if(0!=bl_len)
+  {
+	  app_debug("[%s--%d] boot_app!\r\n", __func__, __LINE__);
+	  boot_app();
+  }
+  fs_test(); // 格式化 Flash
 //  ret = FLASH_Erase(0x08020000, 0x08030000);
 //  app_debug("[%s--%d] FLASH_Erase[%d]\r\n", __func__, __LINE__, ret);
 //  ret = Flash_Write(0x08010000, data, 3);
@@ -209,6 +266,7 @@ int main(void)
   //flash_disk_init();
   //sram_disk_init();
   ZKHY_Slave_upload_init(NULL);
+#if 0
   //SD_GetCardInfo(&cardinfo);
   BSP_SD_GetCardInfo(&cardinfo);
   app_debug("[%s--%d] Specifies the card Type :%d \r\n", __func__, __LINE__, cardinfo.CardType);
@@ -219,20 +277,13 @@ int main(void)
   app_debug("[%s--%d] Specifies one block size in bytes :%d \r\n", __func__, __LINE__, cardinfo.BlockSize);
   app_debug("[%s--%d] Specifies the Card logical Capacity in blocks :%d \r\n", __func__, __LINE__, cardinfo.LogBlockNbr);
   app_debug("[%s--%d] Specifies logical block size in bytes  :%d \r\n", __func__, __LINE__, cardinfo.LogBlockSize);
+#endif
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//    if(cdc_rx_flag > 0)
-//    {
-//      USBD_LL_Transmit(&hUsbDeviceFS,
-//                       CDC_IN_EP,
-//                       cdc_rx_buffer,
-//                       cdc_rx_flag);
-//      cdc_rx_flag = 0;
-//    }
 	  if((0==vbus_connect) && (vbus_high_count>100)) // usb connect
 	  {
 		  vbus_connect = 1;
@@ -242,6 +293,9 @@ int main(void)
 	  {
 		  vbus_connect = 0;
 		  USBD_DeInit(&hUsbDeviceFS);
+		  // 检测升级
+		  /*卸载文件系统*/
+		  f_mount(0, "0:", 0);
 	  }
 	  memset(send_buf, 0, sizeof(send_buf));
 #if 0
