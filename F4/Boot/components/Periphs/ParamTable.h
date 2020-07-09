@@ -20,10 +20,12 @@ extern "C" {
 
 // Flash Base Addr
 //#define STM32_PARAM_BASE 0x0800C000
+extern int ParamTable_quality(void);
 extern uint16_t ParamTable_Size(void);
 extern int ParamTable_Write(const void *const Param, const uint32_t _size);
-extern int ParamTable_Read(void *const Param, const uint32_t _size);
-
+extern int ParamTable_Read(void *const Param, const int _quality, const uint32_t _size);
+// block 为字节数
+extern uint32_t param_write_erase(void);
 extern uint16_t param_write_flash(const uint8_t buf[], const uint32_t seek, const uint16_t block);
 extern uint16_t param_read_flash(uint8_t buf[], const uint32_t seek, const uint16_t block);
 

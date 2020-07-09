@@ -239,11 +239,11 @@ int main(void)
           CDC_Transmit_FS(send_buf, len);
       }
 #else
-      len = cdc_read(send_buf, sizeof(send_buf));
-      if(len>0)
-      {
-    	  cdc_send(send_buf, len);
-      }
+//      len = cdc_read(send_buf, sizeof(send_buf));
+//      if(len>0)
+//      {
+//    	  cdc_send(send_buf, len);
+//      }
 #endif
       memset(send_buf, 0, sizeof(send_buf));
       /*len = uart3_read(send_buf, sizeof(send_buf));
@@ -265,18 +265,20 @@ int main(void)
 //    	  break;
 //      }
       memset(bl_data, 0, sizeof(bl_data));
-      bl_len = cdc_read(bl_data, sizeof(bl_data));
+      bl_len = cdc_read(bl_data, 1);
       if(bl_len>0)
       {
     	  int resp;
     	  int i;
-    	  for(i=0; i<20; i++)
+		  HAL_Delay(100); //
+		  bl_len += cdc_read(&bl_data[bl_len], sizeof(bl_data)-bl_len);
+    	  for(i=0; i<5; i++)
     	  {
         	  app_debug("[%s--%d] bl_len :%d \r\n", __func__, __LINE__, bl_len);
         	  resp = ZKHY_Slave_unFrame_upload(&Frame_upload, bl_data, bl_len, cdc_send);
         	  if(ZKHY_RESP_ERR_PACK==resp) // 解包错误
         	  {
-        		  HAL_Delay(10); // 100 B
+        		  HAL_Delay(20); //
         		  bl_len += cdc_read(&bl_data[bl_len], sizeof(bl_data)-bl_len);
         		  continue;
         	  }

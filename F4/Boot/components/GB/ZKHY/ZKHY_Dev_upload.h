@@ -166,6 +166,8 @@ enum Emb_Store_number{
     EMB_STORE_ROM2        = 9,   // 9	"ROM2"	映射存储区2
     EMB_STORE_ROM3        = 10,  // 10	"ROM3"	映射存储区3
     EMB_STORE_UART        = 11,  // 11	"UART"	UART外设存储区,用于操作 UART进行数据收发
+
+    EMB_STORE_QUALITY     = 254, // 254	"Param Table"	参数表存储区，用于对参数表进行质检.
     EMB_STORE_NONE        = 255, // 255	空,不操作
 };
 // 设备同步

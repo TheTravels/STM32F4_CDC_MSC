@@ -353,6 +353,10 @@ int ZKHY_Dev_Frame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const enum
             _read->seek = 0;
             _read->block = Emb_write_block;
             break;
+        case EMB_STORE_QUALITY:
+            _read->seek = 0;
+            _read->block = Emb_write_block;
+            break;
         case EMB_STORE_UART:  // 读串口, seek为串口号
             _read->seek = 1;
             _read->block = Emb_write_block;
@@ -718,7 +722,7 @@ int ZKHY_Dev_unFrame_upload_Emb(struct ZKHY_Frame_upload* const _frame, const en
         break;
     case ZKHY_EMB_BOOTA:   // 引导 APP状态
     {
-        struct ZKHY_Frame_Emb_boota* const _boota = &_frame->DAT.Emb_boota;
+        //struct ZKHY_Frame_Emb_boota* const _boota = &_frame->DAT.Emb_boota;
         //_boota->status = 0x00; // 状态：0成功、1固件错误、2校验失败、3其它错误
         suc = ZKHY_RESP_SUC;
     }
@@ -953,12 +957,25 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     	const enum Emb_Store_number MemNum = _frame->DAT.Emb_erase.MemNum;
         memset(_frame, 0, sizeof(struct ZKHY_Frame_upload));
         ZKHY_frame_upload_init(_frame, ZKHY_EMB_ERASEA);
+        app_debug("[%s--%d] ZKHY_EMB_ERASE MemNum:%d ...\r\n", __func__, __LINE__, MemNum);
         if(EMB_STORE_FLASH==MemNum) // flash
         {
-        	_erasea->volume = 256*1024;
-        	_erasea->erase = 256*1024;
+        	_erasea->volume = param_flash_size;
+        	_erasea->erase = 0;
+        	_erasea->status = 1;
+        	// 发送擦除消息
+            /*memset(bl_buf, 0, sizeof(bl_buf));
+            enlen = ZKHY_EnFrame_upload(_frame, bl_buf, sizeof(bl_buf));
+            if((NULL!=send_func) && (enlen>0))
+            {
+            	app_debug("[%s--%d] ACK:%d\r\n", __func__, __LINE__, enlen);
+            	send_func(bl_buf, enlen);
+            	HAL_Delay(500); // 100 B
+            	USBD_DeInit(&hUsbDeviceFS);
+            }*/
+        	//FLASH_Erase(param_flash_start, param_flash_start+param_flash_size-1);
+        	_erasea->erase = param_write_erase();
         	_erasea->status = 0;
-        	FLASH_Erase(param_flash_start, param_flash_start+param_flash_size-1);
         }
         else
         {
@@ -966,17 +983,9 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
         	_erasea->erase = 0;
         	_erasea->status = 2; // 擦除状态：0成功、1擦除中、2存储区不支持、3参数错误、4其它错误
         }
+        app_debug("[%s--%d] ERASE Done!\r\n", __func__, __LINE__);
     }
         break;
-    case ZKHY_EMB_ERASEA:  // 擦除设备状态
-    {
-        struct ZKHY_Frame_Emb_erasea* const _erasea = &_frame->DAT.Emb_erasea;
-        _erasea->MemNum = EMB_STORE_FLASH;
-        _erasea->volume = 1024;
-        _erasea->erase = 1024;
-        _erasea->status = 0;
-    }
-    break;
     case ZKHY_EMB_WRITE:   // 分包写入
     {
         struct ZKHY_Frame_Emb_write Write;
@@ -987,18 +996,20 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
             memset(_frame, 0, sizeof(struct ZKHY_Frame_upload));
             ZKHY_frame_upload_init(_frame, ZKHY_EMB_WRITEA);
             _writea->MemNum = Write.MemNum;
+            app_debug("[%s--%d] Write.MemNum:%d\r\n", __func__, __LINE__, Write.MemNum);
             switch(Write.MemNum)
             {
             case EMB_STORE_FLASH:     // 读写入固件
             {
             	int len = 0;
-            	_writea->volume = 256*1024;
+            	_writea->volume = param_flash_size;
             	if(0==Write.seek) // 保存中断向量表
             	{
             		memcpy(pfnVectors, Write.data, 8);
             		memset(Write.data, 0xFF, 8);
             	}
             	len = param_write_flash(Write.data, Write.seek, Write.block);
+            	app_debug("[%s--%d] Write.seek:%d Write.block:%d len:%d \r\n", __func__, __LINE__, Write.seek, Write.block, len);
             	if(len==Write.block)
             	{
                 	_writea->status = 0;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
@@ -1016,12 +1027,12 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
             	_writea->status = 2;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
             	_writea->write = 0;
             	break;
-            case EMB_STORE_KEY:       // 读写入的密钥
+            case EMB_STORE_KEY:       // 写入密钥
             	_writea->status = 0;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
             	_writea->write = 0;
             	_writea->volume = param_write_key(Write.key);
             	break;
-            case EMB_STORE_PARAM:     // 读参数表
+            case EMB_STORE_PARAM:     // 写入参数表
             	_writea->status = 0;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
             	_writea->write = ParamTable_Write(Write.data, Write.block);
             	_writea->volume = ParamTable_Size();
@@ -1092,7 +1103,7 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
             switch(Read.MemNum)
             {
             case EMB_STORE_FLASH:     // 读写入固件
-            	_reada->volume = 256*1024;  // 96 bit
+            	_reada->volume = param_flash_size;
             	_reada->status = 0;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
             	_reada->seek = Read.seek;
             	_reada->block = param_read_flash(_reada->data, Read.seek, Read.block);
@@ -1118,9 +1129,15 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
             case EMB_STORE_PARAM:     // 读参数表
             	_reada->status = 0;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
             	_reada->seek = 0;
-            	_reada->block = ParamTable_Read(_reada->data, Read.block);
+            	_reada->block = ParamTable_Read(_reada->data, 0, Read.block);
             	_reada->volume = ParamTable_Size();
             	break;
+            case EMB_STORE_QUALITY:
+            	_reada->status = 0;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
+            	_reada->seek = 0;
+            	_reada->block = ParamTable_Read(_reada->data, 1, Read.block);
+            	_reada->volume = ParamTable_Size();
+                break;
             case EMB_STORE_UART:  // 读串口, seek为串口号
             	_reada->seek = Read.seek;
             	if(1==Read.seek)  // UART1
