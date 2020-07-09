@@ -187,13 +187,9 @@ void msc_upload(void)
 	  //USBD_DeInit(&hUsbDeviceFS);
 	  /* 挂载文件系统 */
 	  res = f_mount(&fs, "0:", 0);
-	  if (res)
+	  if(FR_OK==res)
 	  {
-		  app_debug("mount fail.\r\n");
-	  }
-	  else
-	  {
-		  app_debug("mount OK.\r\n");
+		  //app_debug("mount OK.\r\n");
 		  // 检测升级
 		  if(0==Ini_load(&Ini))  // 检测到升级配置文件
 		  {
@@ -214,6 +210,14 @@ void msc_upload(void)
 				  char _path[64] = "0:/fw.Ini";
 				  memset(&_path[3], 0x00, sizeof(_path)-3);
 				  memcpy(&_path[3], Name, strlen(Name));
+				  led_tick = 0;
+				  // 刷入固件前有 3s 快闪提示
+				  for(seek=0; seek<60; seek++)
+				  {
+					  HAL_Delay(50);
+					  LL_GPIO_TogglePin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
+				  }
+				  led_tick = 100;
 				  param_write_erase();
 				  // program
 				  for(seek=0; seek<total; seek+=512)
@@ -228,6 +232,7 @@ void msc_upload(void)
 			  }
 		  }
 	  }
+	  //else app_debug("mount fail.\r\n");
 	  /*卸载文件系统*/
 	  f_mount(0, "0:", 0);
 }
@@ -293,7 +298,7 @@ int main(void)
   //app_debug("[%s--%d] len:%d \r\n", __func__, __LINE__, len);
   led_tick = HAL_GetTick() + 200;
   //HAL_Delay(200);  // delay, check VBUS
-  app_debug("[%s--%d] system start!\r\n", __func__, __LINE__);
+  //app_debug("[%s--%d] system start!\r\n", __func__, __LINE__);
   app_debug("[%s--%d] Ver[%d | 0x%08X]:%s\r\n", __func__, __LINE__, sizeof(Emb_Version), &Emb_Version, Emb_Version.version);
   // 检测是否需要升级
   for(bl_len=0; bl_len<100; bl_len++)
@@ -304,6 +309,7 @@ int main(void)
 		  bl_len=0;
 		  break;
 	  }
+#if 0 // 暂时不支持
 	  if(0==check_bl(send_buf, sizeof(send_buf), uart1_read))
 	  {
 		  bl_len=0;
@@ -319,6 +325,7 @@ int main(void)
 		  bl_len=0;
 		  break;
 	  }
+#endif
   }
   //app_debug("[%s--%d] bl_len:%d \r\n", __func__, __LINE__, bl_len);
   if(0!=bl_len)

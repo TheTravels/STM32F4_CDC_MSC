@@ -22,6 +22,7 @@
 #include <stdarg.h>
 #include "usart.h"
 #include "uart.h"
+#include "version.h"
 
 /* USER CODE BEGIN 0 */
 cache_queue UART1_RX_cache;
@@ -148,7 +149,10 @@ int app_debug(const char *__format, ...)
 	//vsprintf(debug_text, __format, ap);
 	vsnprintf(debug_text, sizeof(debug_text)-1, __format, ap);
 	va_end(ap);
-	uart3_send((uint8_t*)debug_text, strlen(debug_text));
+	if(EMB_DEBUG_UART1==Emb_Version.cfg.debug) uart1_send((uint8_t*)debug_text, strlen(debug_text));
+	else if(EMB_DEBUG_UART2==Emb_Version.cfg.debug) uart2_send((uint8_t*)debug_text, strlen(debug_text));
+	else if(EMB_DEBUG_UART3==Emb_Version.cfg.debug) uart3_send((uint8_t*)debug_text, strlen(debug_text));
+	else if(EMB_DEBUG_CDC==Emb_Version.cfg.debug) cdc_send((uint8_t*)debug_text, strlen(debug_text));
 	//_serial_debug->write(_serial_debug, 0, "\r\n", 2);
 	return 0;
 }

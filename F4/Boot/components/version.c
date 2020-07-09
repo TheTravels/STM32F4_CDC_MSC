@@ -42,7 +42,7 @@
 //static uint32_t swd=1;
 
 const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Version = {
-		.version = "2.1.10-hw2.0-HSH.Gen",   // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
+		.version = "1.0.10-hw2.0-HSH.Gen",   // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
 		.model = "0A0",                      // Device Model,eg: "0A0"
 		.author = "Merafour",                // Developers
 		.hardware = "EPS-418",               // Board name
@@ -59,6 +59,7 @@ const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Ve
 				.swd = 1,
 				.vbus = 0,
 				.led = 1,
+				.debug = EMB_DEBUG_UART3,    // Debug out UART3
 		},
 		.reserve1 = 0x55,
 		.reserve2 = 0x55,

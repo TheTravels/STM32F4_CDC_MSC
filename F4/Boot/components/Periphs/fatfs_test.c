@@ -66,10 +66,10 @@ void fs_test(void)
 	{
 		//uart_printf("文件系统挂载成功.\r\n");
 	}
-	res = f_setlabel("0:SRAM");
+	res = f_setlabel("0:EPS-418");
 	/* Create a file as new */
 	//res = f_open(&fil, "0:/123.txt", FA_CREATE_NEW|FA_WRITE|FA_READ);
-	res = f_open(&fil, "0:/simple_fw.Ini", FA_CREATE_NEW|FA_WRITE|FA_READ);
+	res = f_open(&fil, "0:/eps.Ini", FA_CREATE_NEW|FA_WRITE|FA_READ);
 	if (res)
 	{
 		//uart_printf("打开文件失败.\r\n");
@@ -80,7 +80,7 @@ void fs_test(void)
 	}
 	/* Write a message */
 	//res = f_write(&fil, "Hello,World!", 12, &bw);
-	res = f_write(&fil, wtext, sizeof(wtext), (void *)&bw);
+	res = f_write(&fil, wtext, sizeof(wtext)-1, (void *)&bw);
 	//uart_printf("res write:%d\r\n",res);
 	if (bw == 12)
 	{

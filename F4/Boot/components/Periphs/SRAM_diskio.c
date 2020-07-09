@@ -96,7 +96,8 @@ const uint32_t sram_disk_size = sizeof(ccm_disk)+sizeof(sram_disk);
 static char _ccm ccm_disk[1024*32];  // 0-64K
 static uint32_t flash_sector_addr_map = FLASH_SECTOR_ADDR_MAP;      // 64-96K
 static const uint32_t ccm_size = sizeof(ccm_disk);
-#define FLASH_SIZE    (1024*128+1024*128)    // 128KB + 128KB
+//#define FLASH_SIZE    (1024*128+1024*128)    // 128KB + 128KB
+#define FLASH_SIZE    (1024*128)              // 128KB
 static const uint32_t flash_size = FLASH_SIZE;  // 128KB + 128KB
 const uint32_t sram_disk_size = sizeof(ccm_disk)+FLASH_SIZE;
 #endif

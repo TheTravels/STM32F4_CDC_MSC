@@ -95,12 +95,23 @@ struct Emb_Device_Version {
 			const uint8_t swd: 1;     // Debug enable
 			const uint8_t vbus: 1;    // Logic level, vbus, 0:low, 1:high
 			const uint8_t led: 1;     // Logic level, led, 0:low on, 1:high on
-			const uint8_t reserve: 5; // reserve
+			const uint8_t debug: 3;   // Debug Info out, 0: off, 1:UART1, 2:UART2, 3:UART3, 4:UART4, 5:UART5, 6:UART6, 7:CDC
+			const uint8_t reserve: 2; // reserve
 		};
 	}cfg;
 	const uint8_t reserve1;       // reserve
 	const uint8_t reserve2;       // reserve
 };
+
+#define EMB_DEBUG_NONE      0
+#define EMB_DEBUG_UART1     1
+#define EMB_DEBUG_UART2     2
+#define EMB_DEBUG_UART3     3
+#define EMB_DEBUG_UART4     4
+#define EMB_DEBUG_UART5     5
+#define EMB_DEBUG_UART6     6
+#define EMB_DEBUG_CDC       7
+
 
 extern const struct Emb_Device_Version  Emb_Version;
 
