@@ -34,9 +34,13 @@
 #include "sha1/sha1.h"
 #include "Periphs/uart.h"
 #include "Periphs/Flash.h"
+#include "Periphs/crc.h"
+#include "Periphs/ParamTable.h"
 #include "version.h"
 #include "GB/ZKHY/ZKHY_Dev_upload.h"
 #include "core_cm4.h"
+#include "Ini/Ini.h"
+#include "Ini/Files.h"
 struct ZKHY_Frame_upload Frame_upload;
 /* USER CODE END Includes */
 
@@ -68,7 +72,12 @@ extern USBD_StatusTypeDef USBD_DeInit(USBD_HandleTypeDef *pdev);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+static const char fw_name[] = "FW";
+static const char fw_key_name[] = "Name";
+static const char fw_key_total[] = "total";
+static const char fw_key_crc[] = "CRC";
+//static const char fw_key_sha1[] = "SHA1";
+//static const char fw_key_time[] = "Time";
 enum Interface_uart{
 	INTER_UART_NONE  = 0x00,
 	INTER_UART1      = 0x01,
@@ -118,7 +127,7 @@ uint8_t SD_GetCardInfo(HAL_SD_CardInfoTypeDef *cardinfo)
     return sta;
 }
 
-static uint8_t _ccm bl_data[1024*4];
+static uint8_t _ccm __attribute__ ((aligned (4))) bl_data[1024*4];
 extern void HAL_SD_MspDeInit(SD_HandleTypeDef* sdHandle);
 extern void boot_app(void);
 void Periphs_DeInit(void)
@@ -160,6 +169,69 @@ int check_bl(uint8_t _buf[], const uint16_t _bsize, int (*const read_func)(uint8
     return -2;
 }
 
+void msc_upload(void)
+{
+	  char Name[64];
+	  uint32_t total;
+	  uint32_t crc16;
+	  FATFS fs;           /* Filesystem object */
+	  FRESULT res;  /* API result code */
+	  struct Ini_Parse Ini = {
+			  "0:/fw.Ini",
+			  .text = (char *)bl_data,
+			  ._bsize = sizeof(bl_data),
+			  .pos = 0,
+			  ._dsize = 0,
+	  };
+	    uint32_t checksum = 0x12345678;
+	  //USBD_DeInit(&hUsbDeviceFS);
+	  /* 挂载文件系统 */
+	  res = f_mount(&fs, "0:", 0);
+	  if (res)
+	  {
+		  app_debug("mount fail.\r\n");
+	  }
+	  else
+	  {
+		  app_debug("mount OK.\r\n");
+		  // 检测升级
+		  if(0==Ini_load(&Ini))  // 检测到升级配置文件
+		  {
+		    	unsigned short _crc16 = 0;
+		    	_crc16 = 0;
+			  Ini_get_field(&Ini, fw_name, fw_key_name, "-", Name);
+			  app_debug("[%s-%d] Name[%s] \r\n", __func__, __LINE__, Name);
+			  total = Ini_get_int(&Ini, fw_name, fw_key_total, 0);
+			  crc16 = Ini_get_int(&Ini, fw_name, fw_key_crc, 0);
+			  _crc16 = fast_crc16(_crc16, (const unsigned char*)(param_flash_start), total);
+			  checksum = _crc16;
+			  app_debug("[%s-%d] total[0x%08X] crc16[0x%08X] checksum[0x%08X] \r\n", __func__, __LINE__, total, crc16, checksum);
+			  if((checksum!=crc16) && (total>4096) && ('-'!=Name[0])) // upload
+			  {
+				  uint32_t seek;
+				  uint32_t _size;
+				  //long rlen;
+				  char _path[64] = "0:/fw.Ini";
+				  memset(&_path[3], 0x00, sizeof(_path)-3);
+				  memcpy(&_path[3], Name, strlen(Name));
+				  param_write_erase();
+				  // program
+				  for(seek=0; seek<total; seek+=512)
+				  {
+					  _size = total - seek;
+					  if(_size>512) _size = 512;
+					  memset(bl_data, 0xFF, sizeof(bl_data));
+					  /*rlen = */file_read_seek(_path, seek, bl_data, _size);
+					  //app_debug("[%s-%d] read seek[0x%08X] rlen[0x%08X] \r\n", __func__, __LINE__, total, seek, rlen);
+					  param_write_flash(bl_data, seek, _size/4);
+				  }
+			  }
+		  }
+	  }
+	  /*卸载文件系统*/
+	  f_mount(0, "0:", 0);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -170,7 +242,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	static uint8_t send_buf[256];
-    int len=0;
+    //int len=0;
     int bl_len;
     //HAL_SD_CardInfoTypeDef cardinfo;
 //    int ret = 0;
@@ -218,7 +290,7 @@ int main(void)
   memset(send_buf, 0, sizeof(send_buf));
   // 利用 flash的写 0特点擦除原有数据
   //len = Flash_Write_Force(0x08000200, (uint32_t *)send_buf, 8);
-  app_debug("[%s--%d] len:%d \r\n", __func__, __LINE__, len);
+  //app_debug("[%s--%d] len:%d \r\n", __func__, __LINE__, len);
   led_tick = HAL_GetTick() + 200;
   //HAL_Delay(200);  // delay, check VBUS
   app_debug("[%s--%d] system start!\r\n", __func__, __LINE__);
@@ -248,7 +320,7 @@ int main(void)
 		  break;
 	  }
   }
-  app_debug("[%s--%d] bl_len:%d \r\n", __func__, __LINE__, bl_len);
+  //app_debug("[%s--%d] bl_len:%d \r\n", __func__, __LINE__, bl_len);
   if(0!=bl_len)
   {
 	  app_debug("[%s--%d] boot_app!\r\n", __func__, __LINE__);
@@ -265,6 +337,7 @@ int main(void)
   //Flash_Test(0x08010000, 0x08020000);
   //flash_disk_init();
   //sram_disk_init();
+  //msc_upload();
   ZKHY_Slave_upload_init(NULL);
 #if 0
   //SD_GetCardInfo(&cardinfo);
@@ -294,8 +367,8 @@ int main(void)
 		  vbus_connect = 0;
 		  USBD_DeInit(&hUsbDeviceFS);
 		  // 检测升级
-		  /*卸载文件系统*/
-		  f_mount(0, "0:", 0);
+		  msc_upload();
+		  boot_app();
 	  }
 	  memset(send_buf, 0, sizeof(send_buf));
 #if 0

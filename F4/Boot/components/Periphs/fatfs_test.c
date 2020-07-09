@@ -27,7 +27,21 @@ void fs_test(void)
     UINT bw;            /* Bytes written */
     uint8_t work[1024]; /* Work area (larger is better for processing time) */
     uint8_t mm[50];
+#if 0
     uint8_t wtext[] = "\r\n测试数据！！！"; //
+#else
+    uint8_t wtext[] = \
+    		"#Only ASCII encoding is allowed\r\n"\
+			"[Ini]\r\n"\
+			"\r\n"\
+			"[FW]\r\n"\
+			"Time=Jul  9 2020 17:43:09\r\n"\
+			"SHA1=AFA7C476D48A929418535D31A4ABEAC607C98542\r\n"\
+			"CRC=25984\r\n"\
+			"total=43008\r\n"\
+			"Name=MCU418.bin\r\n"\
+			"[End]\r\n";
+#endif
     UINT i;
 
 	//uart_printf("文件系统测试开始:\r\n");
@@ -54,7 +68,8 @@ void fs_test(void)
 	}
 	res = f_setlabel("0:SRAM");
 	/* Create a file as new */
-	res = f_open(&fil, "0:/123.txt", FA_CREATE_NEW|FA_WRITE|FA_READ);
+	//res = f_open(&fil, "0:/123.txt", FA_CREATE_NEW|FA_WRITE|FA_READ);
+	res = f_open(&fil, "0:/simple_fw.Ini", FA_CREATE_NEW|FA_WRITE|FA_READ);
 	if (res)
 	{
 		//uart_printf("打开文件失败.\r\n");
@@ -64,7 +79,7 @@ void fs_test(void)
 		//uart_printf("打开文件成功.\r\n");
 	}
 	/* Write a message */
-	res = f_write(&fil, "Hello,World!", 12, &bw);
+	//res = f_write(&fil, "Hello,World!", 12, &bw);
 	res = f_write(&fil, wtext, sizeof(wtext), (void *)&bw);
 	//uart_printf("res write:%d\r\n",res);
 	if (bw == 12)

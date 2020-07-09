@@ -25,6 +25,7 @@ extern int Flash_Write_Force(const uint32_t WriteAddr, const uint32_t *const pBu
 extern int Flash_Read(const uint32_t ReadAddr, uint32_t *const pBuffer, const uint32_t NumToRead);
 extern int FLASH_Erase(const uint32_t start_addr, const uint32_t end_addr);
 extern int Flash_Test(const uint32_t EraseAddr, const uint32_t WriteAddr);
+extern uint32_t flash_crc16(const uint32_t flash_addr, const uint32_t flash_size, void* const buffer, const uint16_t bsize);
 
 #ifdef __cplusplus
 }

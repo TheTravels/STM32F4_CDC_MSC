@@ -16,6 +16,7 @@
 #include "Periphs/uart.h"
 #define __ParamTable_Size    (256)
 // 用于对齐
+#if 0
 static char __attribute__ ((aligned (4))) param_buf[__ParamTable_Size] = \
 "[Param]\r\n"\
 "SN=0A0CK90N4123\r\n"\
@@ -25,6 +26,8 @@ static char __attribute__ ((aligned (4))) param_buf[__ParamTable_Size] = \
 "FTPP=21\r\n"\
 "Time=2020.08.08\r\n"\
 "[End]\r\n";
+#endif
+static char __attribute__ ((aligned (4))) param_buf[__ParamTable_Size];
 
 //#define FLASH_SECTOR_ADDR_MAP     ((uint32_t)0x08040000) 	// 128 Kbytes
 //#define ADDR_FLASH_SECTOR_8     ((uint32_t)0x08080000) 	// 128 Kbytes

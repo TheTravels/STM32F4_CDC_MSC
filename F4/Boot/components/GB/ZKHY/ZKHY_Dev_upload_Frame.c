@@ -936,6 +936,9 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     	// ACK
     	{
     		struct ZKHY_Frame_Emb_synca* const _synca = &_frame->DAT.Emb_synca;
+	    	unsigned short _crc16 = 0;
+	    	_crc16 = 0;
+	    	_crc16 = fast_crc16(_crc16, (const unsigned char*)(param_flash_start), param_flash_size);
     		memset(_frame, 0, sizeof(struct ZKHY_Frame_upload));
     		ZKHY_frame_upload_init(_frame, ZKHY_EMB_SYNCA);
     		memcpy(_synca->Kk1, def_key1, sizeof(_synca->Kk1));
@@ -954,7 +957,7 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     		//memset(_synca->ID, 0x00, sizeof(_synca->ID));
     		//memcpy(_synca->ID, (char*)0x1FFF7A10, 12);  // 96 bit
     		read_uid(_synca->ID);
-    		_synca->crc = 0;
+    		_synca->crc = _crc16;
     		_synca->block = 1024;
     		_synca->volume = param_flash_size;
     	}
@@ -1195,10 +1198,11 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     	crc16 = 0;
     	crc16 = fast_crc16(crc16, (const unsigned char*)pfnVectors, 8);
     	crc16 = fast_crc16(crc16, (const unsigned char*)(param_flash_start+8), Boot.total-8);
+    	//app_debug("[%s--%d] addr[0x%08X | 0x%04X] Boot.crc[0x%08X] crc16[0x%08X] \r\n", __func__, __LINE__, param_flash_start, Boot.total, Boot.crc, crc16);
     	if(Boot.crc==crc16)
     	{
     		const char info[] = "app start!";
-    		Flash_Write_Force(param_flash_start, pfnVectors, 8);
+    		Flash_Write_Force(param_flash_start, pfnVectors, 2);
     		_boota->status = 0x00; // 状态：0成功、1固件错误、2校验失败、3其它错误
     		memcpy(_boota->info, info, sizeof(info));
     		memset(bl_buf, 0, sizeof(bl_buf));
@@ -1209,6 +1213,9 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     			send_func(bl_buf, enlen);
     			HAL_Delay(500); // 100 B
     		}
+    		//crc16 = 0;
+    		//crc16 = fast_crc16(crc16, (const unsigned char*)(param_flash_start), Boot.total);
+    		//app_debug("[%s--%d] crc16[0x%08X] \r\n", __func__, __LINE__, crc16);
     		// boot
     		app_debug("[%s--%d] boot_app \r\n", __func__, __LINE__);
     		boot_app();
