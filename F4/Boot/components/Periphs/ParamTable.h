@@ -20,6 +20,7 @@ extern "C" {
 
 // Flash Base Addr
 //#define STM32_PARAM_BASE 0x0800C000
+extern void boot_app(void);
 extern int ParamTable_quality(void);
 extern uint16_t ParamTable_Size(void);
 extern int ParamTable_Write(const void *const Param, const uint32_t _size);

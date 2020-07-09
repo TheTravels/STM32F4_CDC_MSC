@@ -36,6 +36,7 @@
 #include "Periphs/Flash.h"
 #include "version.h"
 #include "GB/ZKHY/ZKHY_Dev_upload.h"
+#include "core_cm4.h"
 struct ZKHY_Frame_upload Frame_upload;
 /* USER CODE END Includes */
 
@@ -118,6 +119,22 @@ uint8_t SD_GetCardInfo(HAL_SD_CardInfoTypeDef *cardinfo)
 }
 
 static uint8_t _ccm bl_data[1024*4];
+extern void HAL_SD_MspDeInit(SD_HandleTypeDef* sdHandle);
+void Periphs_DeInit(void)
+{
+	USBD_DeInit(&hUsbDeviceFS);
+	SysTick->CTRL &= (~SysTick_CTRL_ENABLE_Msk);
+	LL_USART_DeInit(USART1);
+	LL_USART_DeInit(USART2);
+	LL_USART_DeInit(USART3);
+	HAL_SD_MspDeInit(&hsd);
+	HAL_GPIO_DeInit(SD_NCD_GPIO_Port, SD_NCD_Pin);
+	HAL_GPIO_DeInit(LED_GPIO_Port, LED_Pin);
+	HAL_GPIO_DeInit(VBUS_GPIO_Port, VBUS_Pin);
+	HAL_GPIO_DeInit(PWR_EN_GPS_GPIO_Port, PWR_EN_GPS_Pin);
+	HAL_GPIO_DeInit(PWR_EN_4G_GPIO_Port, PWR_EN_4G_Pin);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -238,12 +255,12 @@ int main(void)
       {
           CDC_Transmit_FS(send_buf, len);
       }
-#else
-//      len = cdc_read(send_buf, sizeof(send_buf));
-//      if(len>0)
-//      {
-//    	  cdc_send(send_buf, len);
-//      }
+//#else
+      len = cdc_read(send_buf, sizeof(send_buf));
+      if(len>0)
+      {
+    	  cdc_send(send_buf, len);
+      }
 #endif
       memset(send_buf, 0, sizeof(send_buf));
       /*len = uart3_read(send_buf, sizeof(send_buf));
@@ -270,7 +287,7 @@ int main(void)
       {
     	  int resp;
     	  int i;
-		  HAL_Delay(100); //
+		  HAL_Delay(50); //
 		  bl_len += cdc_read(&bl_data[bl_len], sizeof(bl_data)-bl_len);
     	  for(i=0; i<5; i++)
     	  {

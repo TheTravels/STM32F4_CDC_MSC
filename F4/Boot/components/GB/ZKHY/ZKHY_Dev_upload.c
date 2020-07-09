@@ -264,6 +264,7 @@ static inline int EnFrame_Emb_synca(const struct ZKHY_Frame_Emb_synca* const _in
     index += gb_cpy(&buf[index], _info->ID, sizeof (_info->ID));
     index += bigend32_encode(&buf[index], _info->crc);
     index += bigend16_encode(&buf[index], _info->block);
+    index += bigend32_encode(&buf[index], _info->volume);
     // buf 大小检查
     if(index>_size) return ZKHY_RESP_ERR_ENCODE_PACKL;
     return index; // len
@@ -279,6 +280,7 @@ static inline int DeFrame_Emb_synca(struct ZKHY_Frame_Emb_synca* const _info, co
     index += gb_cpy(_info->ID, &data[index], sizeof (_info->ID));
     index += bigend32_merge(&_info->crc, data[index], data[index+1], data[index+2], data[index+3]);
     index += bigend16_merge(&_info->block, data[index], data[index+1]);
+    index += bigend32_merge(&_info->volume, data[index], data[index+1], data[index+2], data[index+3]);
     // buf 大小检查
     if(index>_size) return ZKHY_RESP_ERR_DECODE_PACKL;
     return index; // len

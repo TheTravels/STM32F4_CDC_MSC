@@ -185,6 +185,7 @@ struct ZKHY_Frame_Emb_synca{
     uint8_t ID[32];        // 芯片ID号,超过32字节时只取32字节
     uint32_t crc;          // 设备中固件校验码
     uint16_t block;        // 每次分包写入的数据大小,即设备中接收数据的buf大小，建议为 512*n(n为整数)
+    uint32_t volume;       // 存储区容量，单位Byte
 };
 
 // 擦除设备
