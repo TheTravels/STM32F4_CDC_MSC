@@ -49,6 +49,7 @@ const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Ve
 		.mtext = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},      // boot signature Key
 		.signData = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},   // boot signature
 		.signApp = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},    // firmware signature
+		.crc = 0xFFFFFFFF,
 		//.swd = 0,                          // Debug enable
 		.erase = 0,                          //
 		.flash = 256/2,                      // Flash map addr, 2K

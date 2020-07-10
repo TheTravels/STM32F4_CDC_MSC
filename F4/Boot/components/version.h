@@ -83,6 +83,7 @@ struct Emb_Device_Version {
 	const uint32_t mtext[8];      // boot signature Key
 	const uint32_t signData[8];   // boot signature
 	const uint32_t signApp[8];    // firmware signature
+	const uint32_t crc;           // 校验码,用于校验防止数据被串改
 	//const uint8_t swd;            // Debug enable
 	const uint8_t erase;          //
 	const uint8_t flash;          // Flash map addr, 2K

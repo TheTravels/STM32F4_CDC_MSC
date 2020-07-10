@@ -18,8 +18,14 @@
 extern "C" {
 #endif
 
+#define FAST_CRC16     1
+#undef  FAST_CRC16
+
 // 计算 CRC
+#ifdef FAST_CRC16
 extern unsigned short fast_crc16(unsigned short sum, const unsigned char *p, unsigned int len);
+#endif
+extern unsigned short slow_crc16(unsigned short sum, const unsigned char *p, unsigned int len);
 
 #ifdef __cplusplus
 }

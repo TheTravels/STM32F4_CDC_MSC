@@ -10,6 +10,7 @@
 * https://github.com/merafour
 *******************************************************************************/
 #include "crc.h"
+#if 0
 static const unsigned short crc16_table[256] =
 {
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7, 0x8108,
@@ -48,7 +49,8 @@ unsigned short fast_crc16(unsigned short sum, const unsigned char *p, unsigned i
         sum = crc16_table[(sum >> 8) ^ *p++] ^ (sum << 8);
     return sum;
 }
-unsigned short slow_crc16(unsigned short sum, unsigned char *p, unsigned int len)
+#endif
+unsigned short slow_crc16(unsigned short sum, const unsigned char *p, unsigned int len)
 {
     while (len--)
     {

@@ -41,6 +41,7 @@
 #include "core_cm4.h"
 #include "Ini/Ini.h"
 #include "Ini/Files.h"
+#include "tea/tea.h"
 struct ZKHY_Frame_upload Frame_upload;
 /* USER CODE END Includes */
 
@@ -97,6 +98,7 @@ static uint8_t vbus_high_count=0;
 static uint8_t vbus_low_count=0;
 static uint8_t vbus_connect=0;
 static uint32_t led_tick = 0;
+static void bl_entry(void);
 
 void vbus_poll(const uint32_t _tick)
 {
@@ -199,7 +201,11 @@ void msc_upload(void)
 			  app_debug("[%s-%d] Name[%s] \r\n", __func__, __LINE__, Name);
 			  total = Ini_get_int(&Ini, fw_name, fw_key_total, 0);
 			  crc16 = Ini_get_int(&Ini, fw_name, fw_key_crc, 0);
+#ifdef FAST_CRC16
 			  _crc16 = fast_crc16(_crc16, (const unsigned char*)(param_flash_start), total);
+#else
+			  _crc16 = slow_crc16(_crc16, (const unsigned char*)(param_flash_start), total);
+#endif
 			  checksum = _crc16;
 			  app_debug("[%s-%d] total[0x%08X] crc16[0x%08X] checksum[0x%08X] \r\n", __func__, __LINE__, total, crc16, checksum);
 			  if((checksum!=crc16) && (total>4096) && ('-'!=Name[0])) // upload
@@ -237,6 +243,278 @@ void msc_upload(void)
 	  f_mount(0, "0:", 0);
 }
 
+// 对芯片签名, 签名长度 32B
+extern uint8_t read_uid(uint8_t uid[]);
+static uint8_t send_buf[256];
+static uint32_t sign_flag = 0;
+static inline uint32_t sign_chip(uint32_t sign[8])
+{
+	// 对齐
+	uint32_t uid[8];
+	uint16_t count, i;
+	unsigned short crc16 = 0;
+	uint32_t crc;
+	uint32_t addr = (uint32_t)&bl_entry;
+	const uint32_t* flash = (const uint32_t*)0x08000400;
+	const uint32_t key[4]={0x89480304, 0x60670708, 0x090A0B0C, 0x68270F10};
+	const uint16_t emb_iteration = 64;
+
+	addr = addr-(addr&0x03);  // 对齐
+	flash = (const uint32_t*)(addr+((flash[0]&0x7F)<<2));
+	//memset(uid, 0x5A, sizeof(uid));   // 填默认值
+	memcpy(uid, flash, sizeof(uid));  // 将代码作为随机数使用
+	// 读取 ID
+	read_uid((uint8_t*)uid);  // 96 bit
+	// 使用 TEA 加密, 迭代处理,将对称加密变成不可解密加密算法
+	for(count=0; count< 16; count++)
+	{
+		memcpy(&sign[0], key, sizeof(key));
+		memcpy(&sign[4], key, sizeof(key));
+		tea_encrypt(sign, 4*8, uid, emb_iteration);
+		// 叠加,将 sign 和 key 带入 uid,从而让数据不可解密
+		for(i=0; i<8; i++) uid[i] = uid[i] + ((uid[i]>>i)&0xFFFF) + ((sign[i]<<i)&0xFFFF0000);
+		tea_encrypt(uid, sizeof(uid), key, emb_iteration);
+		sign_flag++;
+	}
+	// 计算 CRC
+	crc16 = 0;
+#ifdef FAST_CRC16
+	crc16 = fast_crc16(crc16, (const unsigned char*)(0x08000000+0x0400), 1024*32); // 32K 代码校验
+#else
+	crc16 = slow_crc16(crc16, (const unsigned char*)(0x08000000+0x0400), 1024*32); // 32K 代码校验
+#endif
+	crc = crc16;
+	memcpy(&sign[0], uid, sizeof(uid));
+	MX_USART3_UART_Init();
+	/*app_debug("[%s--%d] crc:0x%08X sign_flag:%d \r\n", __func__, __LINE__, crc, sign_flag);
+	app_debug("[%s--%d] sign: \r\n", __func__, __LINE__);
+	for(i=0; i<8; i++) app_debug("0x%08X \r\n", sign[i]);
+	app_debug("\r\n");*/
+	return crc;
+}
+// addr必须是32位对齐的, wlen:32位宽度数据长度
+static void erase_chip(const uint32_t addr, const uint8_t wlen)
+{
+	uint32_t data[32];
+	uint8_t len;
+	// 通过写 0 的方式擦除数据,这是 flash 的特性,数据写入是将 1 编程为 0 的过程
+	len = wlen;
+	if(len>32) len = 32;
+	memset(data, 0x00, sizeof(data));
+	Flash_Write_Force(addr, data, len);
+	HAL_Delay(100);
+	//app_debug("[%s--%d] bl_entry\r\n", __func__, __LINE__);
+	// jump to app
+	bl_entry();
+}
+// 签名
+void __attribute__((unused, section(".sign_chip"))) first_sign_chip(void)
+{
+	uint32_t sign[8];
+	uint32_t crc;
+	uint32_t addr = (uint32_t)&first_sign_chip;
+	addr = addr-(addr&0x03);  // 对齐
+	// 签名
+	crc = sign_chip(sign);
+	// 写入 CRC
+	Flash_Write_Force((const uint32_t)&Emb_Version.crc, &crc, 1);
+	// 写入签名
+	Flash_Write_Force((const uint32_t)&Emb_Version.signData, sign, 8);
+	// 擦除 first_sign_chip 函数, 80 为 first_sign_chip 函数的大小
+	erase_chip(addr, 70/4);
+}
+// 验签代码
+void verify_chip(void)
+{
+	uint32_t sign[8];
+	uint32_t crc;
+	int led;
+	// 签名
+	crc = sign_chip(sign);
+	//app_debug("[%s--%d] uid: \r\n", __func__, __LINE__);
+	if((16==sign_flag) && (Emb_Version.crc==crc) && (0==memcmp(sign, Emb_Version.signData, sizeof(Emb_Version.signData))))
+	{
+		//app_debug("[%s--%d] uid: \r\n", __func__, __LINE__);
+		bl_entry();
+	}
+	//app_debug("[%s--%d] uid: \r\n", __func__, __LINE__);
+	// 加密验证错误, 错误提示:3s快闪,3s慢闪
+	led_tick = 0;
+	MX_GPIO_Init();
+	while(1)  // nop
+	{
+		// 使用";"会出现 warning: this 'for' clause does not guard... [-Wmisleading-indentation]
+		//asm("mov r0,r0");
+		// 刷入固件前有 3s 快闪提示
+		for(led=0; led<60; led++) // 3s
+		{
+			HAL_Delay(50);
+			LL_GPIO_TogglePin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
+		}
+		for(led=0; led<6; led++)  // 3s
+		{
+			HAL_Delay(500);
+			LL_GPIO_TogglePin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
+		}
+	}
+}
+
+// 真正的入口
+static void bl_entry(void)
+{
+	int bl_len;
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	//MX_USB_DEVICE_Init();
+	//MX_SDIO_SD_Init();
+	MX_USART1_UART_Init();
+	MX_USART2_UART_Init();
+	MX_USART3_UART_Init();
+	MX_FATFS_Init();
+	/* USER CODE BEGIN 2 */
+	//USART1_Init(115200);
+	//USART2_Init(115200);
+	//USART3_Init(115200);
+	//MX_FATFS_Init();
+	//SD_initialize(0);
+	//fs_test();
+	//fs_test_sdio();
+	//MX_USB_DEVICE_Init();
+	//SHA1(NULL, "Hello", 5); // -Os Optimize code, add code 4K
+	LL_GPIO_ResetOutputPin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
+	//fs_test(); // 格式化 Flash
+	memset(send_buf, 0, sizeof(send_buf));
+	// 利用 flash的写 0特点擦除原有数据
+	//len = Flash_Write_Force(0x08000200, (uint32_t *)send_buf, 8);
+	//app_debug("[%s--%d] len:%d \r\n", __func__, __LINE__, len);
+	led_tick = HAL_GetTick() + 200;
+	//HAL_Delay(200);  // delay, check VBUS
+	//app_debug("[%s--%d] system start!\r\n", __func__, __LINE__);
+	app_debug("[%s--%d] Ver[%d | 0x%08X]:%s\r\n", __func__, __LINE__, sizeof(Emb_Version), &Emb_Version, Emb_Version.version);
+	// 检测是否需要升级
+	for(bl_len=0; bl_len<100; bl_len++)
+	{
+		HAL_Delay(10);
+		if((0==vbus_connect) && (vbus_high_count>100)) // usb connect
+		{
+			bl_len=0;
+			break;
+		}
+#if 0 // 暂时不支持
+		if(0==check_bl(send_buf, sizeof(send_buf), uart1_read))
+		{
+			bl_len=0;
+			break;
+		}
+		if(0==check_bl(send_buf, sizeof(send_buf), uart2_read))
+		{
+			bl_len=0;
+			break;
+		}
+		if(0==check_bl(send_buf, sizeof(send_buf), uart3_read))
+		{
+			bl_len=0;
+			break;
+		}
+#endif
+	}
+	//app_debug("[%s--%d] bl_len:%d \r\n", __func__, __LINE__, bl_len);
+	if(0!=bl_len)
+	{
+		app_debug("[%s--%d] boot_app!\r\n", __func__, __LINE__);
+		boot_app();
+	}
+	fs_test(); // 格式化 Flash
+	//  ret = FLASH_Erase(0x08020000, 0x08030000);
+	//  app_debug("[%s--%d] FLASH_Erase[%d]\r\n", __func__, __LINE__, ret);
+	//  ret = Flash_Write(0x08010000, data, 3);
+	//  app_debug("[%s--%d] FLASH_write<%d>[%08X %08X %08X]\r\n", __func__, __LINE__, ret, data[0], data[1], data[2]);
+	//  memset(data, 0, sizeof(data));
+	//  ret = Flash_Read(0x08010000, data, 3);
+	//  app_debug("[%s--%d] FLASH_read<%d>[%08X %08X %08X]\r\n", __func__, __LINE__, ret, data[0], data[1], data[2]);
+	//Flash_Test(0x08010000, 0x08020000);
+	//flash_disk_init();
+	//sram_disk_init();
+	//msc_upload();
+	ZKHY_Slave_upload_init(NULL);
+#if 0
+	//SD_GetCardInfo(&cardinfo);
+	BSP_SD_GetCardInfo(&cardinfo);
+	app_debug("[%s--%d] Specifies the card Type :%d \r\n", __func__, __LINE__, cardinfo.CardType);
+	app_debug("[%s--%d] Specifies the card version :%d \r\n", __func__, __LINE__, cardinfo.CardVersion);
+	app_debug("[%s--%d] Specifies the class of the card class :%d \r\n", __func__, __LINE__, cardinfo.Class);
+	app_debug("[%s--%d] Specifies the Relative Card Address :%d \r\n", __func__, __LINE__, cardinfo.RelCardAdd);
+	app_debug("[%s--%d] Specifies the Card Capacity in blocks :%d | %d | %d \r\n", __func__, __LINE__, cardinfo.BlockNbr, cardinfo.BlockNbr*cardinfo.BlockSize, cardinfo.BlockNbr*cardinfo.BlockSize/1024/1024);
+	app_debug("[%s--%d] Specifies one block size in bytes :%d \r\n", __func__, __LINE__, cardinfo.BlockSize);
+	app_debug("[%s--%d] Specifies the Card logical Capacity in blocks :%d \r\n", __func__, __LINE__, cardinfo.LogBlockNbr);
+	app_debug("[%s--%d] Specifies logical block size in bytes  :%d \r\n", __func__, __LINE__, cardinfo.LogBlockSize);
+#endif
+	/* USER CODE END 2 */
+
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
+	while (1)
+	{
+		if((0==vbus_connect) && (vbus_high_count>100)) // usb connect
+		{
+			vbus_connect = 1;
+			MX_USB_DEVICE_Init();
+		}
+		if((1==vbus_connect) && (vbus_low_count>100)) // usb disconnect
+		{
+			vbus_connect = 0;
+			USBD_DeInit(&hUsbDeviceFS);
+			// 检测升级
+			msc_upload();
+			boot_app();
+		}
+		memset(send_buf, 0, sizeof(send_buf));
+		/*len = uart3_read(send_buf, sizeof(send_buf));
+	      if(len>0)
+	      {
+	    	  uart3_send(send_buf, len);
+	      }*/
+		//      switch(inter_uart)
+		//      {
+		//      case 1:
+		//    	  break;
+		//      case 2:
+		//    	  break;
+		//      case 3:
+		//    	  break;
+		//      case 4:
+		//    	  break;
+		//      default:
+		//    	  break;
+		//      }
+		memset(bl_data, 0, sizeof(bl_data));
+		bl_len = cdc_read(bl_data, 1);
+		if(bl_len>0)
+		{
+			int resp;
+			int i;
+			HAL_Delay(50); //
+			bl_len += cdc_read(&bl_data[bl_len], sizeof(bl_data)-bl_len);
+			for(i=0; i<5; i++)
+			{
+				app_debug("[%s--%d] bl_len :%d \r\n", __func__, __LINE__, bl_len);
+				resp = ZKHY_Slave_unFrame_upload(&Frame_upload, bl_data, bl_len, cdc_send);
+				if(ZKHY_RESP_ERR_PACK==resp) // 解包错误
+				{
+					HAL_Delay(20); //
+					bl_len += cdc_read(&bl_data[bl_len], sizeof(bl_data)-bl_len);
+					continue;
+				}
+				break;
+			}
+		}
+		/* USER CODE END WHILE */
+
+		/* USER CODE BEGIN 3 */
+	}
+}
+
+
 /* USER CODE END 0 */
 
 /**
@@ -246,9 +524,12 @@ void msc_upload(void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	static uint8_t send_buf[256];
+	//static uint8_t send_buf[256];
     //int len=0;
     int bl_len;
+	//uint32_t crc;
+	uint32_t addr = (uint32_t)&first_sign_chip;
+	addr = addr-(addr&0x03);  // 对齐
     //HAL_SD_CardInfoTypeDef cardinfo;
 //    int ret = 0;
 //    uint32_t data[3]={0x123456AB, 0x12CD4568, 0x1256EF34};
@@ -270,6 +551,9 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
   uartx_queue_init();
+  // 芯片加密校验
+  if(0x00000000!=(*(const uint32_t*)addr)) first_sign_chip();
+  verify_chip();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */

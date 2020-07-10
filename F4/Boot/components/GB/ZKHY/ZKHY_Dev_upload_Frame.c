@@ -873,7 +873,7 @@ int ZKHY_Slave_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum Z
 #endif
 // 用于返回数据
 static uint8_t _ccm bl_buf[1024*4];
-static uint8_t read_uid(uint8_t uid[])
+uint8_t read_uid(uint8_t uid[])
 {
 	const char* const id_addr = (const char*)0x1FFF7A10;
 	memcpy(uid, id_addr, 12);  // 96 bit
@@ -938,7 +938,11 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     		struct ZKHY_Frame_Emb_synca* const _synca = &_frame->DAT.Emb_synca;
 	    	unsigned short _crc16 = 0;
 	    	_crc16 = 0;
+#ifdef FAST_CRC16
 	    	_crc16 = fast_crc16(_crc16, (const unsigned char*)(param_flash_start), param_flash_size);
+#else
+	    	_crc16 = slow_crc16(_crc16, (const unsigned char*)(param_flash_start), param_flash_size);
+#endif
     		memset(_frame, 0, sizeof(struct ZKHY_Frame_upload));
     		ZKHY_frame_upload_init(_frame, ZKHY_EMB_SYNCA);
     		memcpy(_synca->Kk1, def_key1, sizeof(_synca->Kk1));
@@ -1196,8 +1200,13 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     	ZKHY_frame_upload_init(_frame, ZKHY_EMB_BOOTA);
     	unsigned short crc16 = 0;
     	crc16 = 0;
+#ifdef FAST_CRC16
     	crc16 = fast_crc16(crc16, (const unsigned char*)pfnVectors, 8);
     	crc16 = fast_crc16(crc16, (const unsigned char*)(param_flash_start+8), Boot.total-8);
+#else
+    	crc16 = slow_crc16(crc16, (const unsigned char*)pfnVectors, 8);
+    	crc16 = slow_crc16(crc16, (const unsigned char*)(param_flash_start+8), Boot.total-8);
+#endif
     	//app_debug("[%s--%d] addr[0x%08X | 0x%04X] Boot.crc[0x%08X] crc16[0x%08X] \r\n", __func__, __LINE__, param_flash_start, Boot.total, Boot.crc, crc16);
     	if(Boot.crc==crc16)
     	{

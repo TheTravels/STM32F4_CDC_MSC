@@ -50,7 +50,8 @@ SECTIONS
   {
     . = ALIGN(4);
     KEEP(*(.isr_vector)) /* Startup code */
-    KEEP(*(.version)) /* Startup code */
+    KEEP(*(.sign_chip))  /* sign_chip code */
+    KEEP(*(.version))    /* version code */
     . = ALIGN(4);
   } >FLASH
 
