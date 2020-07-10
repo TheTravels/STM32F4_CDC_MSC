@@ -41,6 +41,7 @@
 #include "Ini/Ini.h"
 #include "Ini/Files.h"
 #include "tea/tea.h"
+#include "driver/ec20.h"
 struct ZKHY_Frame_upload Frame_upload;
 /* USER CODE END Includes */
 
@@ -320,7 +321,7 @@ void __attribute__((unused, section(".sign_chip"))) first_sign_chip(void)
 	// 写入签名
 	Flash_Write_Force((const uint32_t)&Emb_Version.signData, sign, 8);
 	// 擦除 first_sign_chip 函数, 80 为 first_sign_chip 函数的大小
-	erase_chip(addr, 70/4);
+	erase_chip(addr, 80/4);
 }
 // 验签代码
 void verify_chip(void)
@@ -551,8 +552,10 @@ int main(void)
   /* USER CODE BEGIN SysInit */
   uartx_queue_init();
   // 芯片加密校验
+#if 0 // 调试时关闭这部分功能
   if(0x00000000!=(*(const uint32_t*)addr)) first_sign_chip();
   verify_chip();
+#endif
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -564,9 +567,9 @@ int main(void)
   MX_USART3_UART_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
-  //USART1_Init(115200);
-  //USART2_Init(115200);
-  //USART3_Init(115200);
+  USART1_Init(115200);
+  USART2_Init(115200);
+  USART3_Init(115200);
   //MX_FATFS_Init();
   //SD_initialize(0);
   //fs_test();
@@ -610,11 +613,12 @@ int main(void)
 	  }
 #endif
   }
+  EC20_Test();
   //app_debug("[%s--%d] bl_len:%d \r\n", __func__, __LINE__, bl_len);
   if(0!=bl_len)
   {
 	  app_debug("[%s--%d] boot_app!\r\n", __func__, __LINE__);
-	  boot_app();
+	  //boot_app();
   }
   fs_test(); // 格式化 Flash
 //  ret = FLASH_Erase(0x08020000, 0x08030000);
@@ -658,7 +662,7 @@ int main(void)
 		  USBD_DeInit(&hUsbDeviceFS);
 		  // 检测升级
 		  msc_upload();
-		  boot_app();
+		  //boot_app();
 	  }
 	  memset(send_buf, 0, sizeof(send_buf));
 #if 0
@@ -673,10 +677,12 @@ int main(void)
           CDC_Transmit_FS(send_buf, len);
       }
 //#else
-      len = cdc_read(send_buf, sizeof(send_buf));
-      if(len>0)
+      bl_len = uart1_read(send_buf, sizeof(send_buf));
+      if(bl_len>0)
       {
-    	  cdc_send(send_buf, len);
+    	  uart3_send(send_buf, bl_len);
+    	  EC20_Test();
+    	  app_debug("[%s--%d] EC20 Test End!\r\n", __func__, __LINE__);
       }
 #endif
       memset(send_buf, 0, sizeof(send_buf));

@@ -34,7 +34,7 @@ static __inline void init_queue(cache_queue* const _queue)
 			memset(buf, 0, _size); \
 			for(index=0; index<_size; index++) \
 			{ \
-				  uint16_t r_tmp; \
+				    uint16_t r_tmp; \
 					r_tmp = _queue.index_r+1; \
 					if(r_tmp>=sizeof(_queue.buf)) r_tmp=0; \
 					if(r_tmp == _queue.index_w) break;  /* empty */ \
