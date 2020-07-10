@@ -21,7 +21,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "fatfs.h"
-#include "sdio.h"
 #include "usart.h"
 #include "usb_device.h"
 #include "gpio.h"
@@ -122,15 +121,15 @@ void vbus_poll(const uint32_t _tick)
 	}
 }
 
-uint8_t SD_GetCardInfo(HAL_SD_CardInfoTypeDef *cardinfo)
-{
-    uint8_t sta;
-    sta=HAL_SD_GetCardInfo(&hsd,cardinfo);
-    return sta;
-}
+//uint8_t SD_GetCardInfo(HAL_SD_CardInfoTypeDef *cardinfo)
+//{
+//    uint8_t sta;
+//    sta=HAL_SD_GetCardInfo(&hsd,cardinfo);
+//    return sta;
+//}
 
 static uint8_t _ccm __attribute__ ((aligned (4))) bl_data[1024*4];
-extern void HAL_SD_MspDeInit(SD_HandleTypeDef* sdHandle);
+//extern void HAL_SD_MspDeInit(SD_HandleTypeDef* sdHandle);
 extern void boot_app(void);
 void Periphs_DeInit(void)
 {
@@ -139,7 +138,7 @@ void Periphs_DeInit(void)
 	LL_USART_DeInit(USART1);
 	LL_USART_DeInit(USART2);
 	LL_USART_DeInit(USART3);
-	HAL_SD_MspDeInit(&hsd);
+	//HAL_SD_MspDeInit(&hsd);
 	HAL_GPIO_DeInit(SD_NCD_GPIO_Port, SD_NCD_Pin);
 	HAL_GPIO_DeInit(LED_GPIO_Port, LED_Pin);
 	HAL_GPIO_DeInit(VBUS_GPIO_Port, VBUS_Pin);
@@ -195,8 +194,8 @@ void msc_upload(void)
 		  // 检测升级
 		  if(0==Ini_load(&Ini))  // 检测到升级配置文件
 		  {
-		    	unsigned short _crc16 = 0;
-		    	_crc16 = 0;
+			  uint32_t _crc16 = 0;
+			  _crc16 = 0;
 			  Ini_get_field(&Ini, fw_name, fw_key_name, "-", Name);
 			  app_debug("[%s-%d] Name[%s] \r\n", __func__, __LINE__, Name);
 			  total = Ini_get_int(&Ini, fw_name, fw_key_total, 0);
@@ -204,7 +203,7 @@ void msc_upload(void)
 #ifdef FAST_CRC16
 			  _crc16 = fast_crc16(_crc16, (const unsigned char*)(param_flash_start), total);
 #else
-			  _crc16 = slow_crc16(_crc16, (const unsigned char*)(param_flash_start), total);
+			  _crc16 = fw_crc(_crc16, (const unsigned char*)(param_flash_start), total);
 #endif
 			  checksum = _crc16;
 			  app_debug("[%s-%d] total[0x%08X] crc16[0x%08X] checksum[0x%08X] \r\n", __func__, __LINE__, total, crc16, checksum);
@@ -252,7 +251,7 @@ static inline uint32_t sign_chip(uint32_t sign[8])
 	// 对齐
 	uint32_t uid[8];
 	uint16_t count, i;
-	unsigned short crc16 = 0;
+	uint32_t crc16 = 0;
 	uint32_t crc;
 	uint32_t addr = (uint32_t)&bl_entry;
 	const uint32_t* flash = (const uint32_t*)0x08000400;
@@ -281,7 +280,7 @@ static inline uint32_t sign_chip(uint32_t sign[8])
 #ifdef FAST_CRC16
 	crc16 = fast_crc16(crc16, (const unsigned char*)(0x08000000+0x0400), 1024*32); // 32K 代码校验
 #else
-	crc16 = slow_crc16(crc16, (const unsigned char*)(0x08000000+0x0400), 1024*32); // 32K 代码校验
+	crc16 = fw_crc(crc16, (const unsigned char*)(0x08000000+0x0400), 1024*32); // 32K 代码校验
 #endif
 	crc = crc16;
 	memcpy(&sign[0], uid, sizeof(uid));

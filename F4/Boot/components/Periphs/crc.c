@@ -10,7 +10,8 @@
 * https://github.com/merafour
 *******************************************************************************/
 #include "crc.h"
-#if 0
+
+#ifdef FAST_CRC16
 static const unsigned short crc16_table[256] =
 {
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7, 0x8108,
@@ -50,6 +51,8 @@ unsigned short fast_crc16(unsigned short sum, const unsigned char *p, unsigned i
     return sum;
 }
 #endif
+
+#ifdef SLOW_CRC16
 unsigned short slow_crc16(unsigned short sum, const unsigned char *p, unsigned int len)
 {
     while (len--)
@@ -69,7 +72,53 @@ unsigned short slow_crc16(unsigned short sum, const unsigned char *p, unsigned i
     }
     return sum;
 }
+#endif
+
+#ifdef SLOW_CRC32
+// 参考 https://github.com/PX4/Bootloader/blob/v4.1.0-rc2/bl.c ： static uint32_t crc32(const uint8_t *src, unsigned len, unsigned state)
+uint32_t px4_bl_crc32(const uint8_t *src, unsigned len, unsigned state)
+{
+	static uint32_t crctab[256];
+
+	/* check whether we have generated the CRC table yet */
+	/* this is much smaller than a static table */
+	if (crctab[1] == 0)
+	{
+		for (unsigned i = 0; i < 256; i++)
+		{
+			uint32_t c = i;
+
+			for (unsigned j = 0; j < 8; j++)
+			{
+				if (c & 1)
+				{
+					c = 0xedb88320U ^ (c >> 1);
+				}
+				else
+				{
+					c = c >> 1;
+				}
+			}
+			crctab[i] = c;
+		}
+	}
+
+	for (unsigned i = 0; i < len; i++)
+		state = crctab[(state ^ src[i]) & 0xff] ^ (state >> 8);
+	return state;
+}
+#endif
 
 
+uint32_t fw_crc(const uint32_t sum, const unsigned char *p, const unsigned int len)
+{
+#ifdef FAST_CRC16
+	return fast_crc16(sum, p, len);
+#elif defined(SLOW_CRC16)
+	return slow_crc16(sum, p, len);
+#elif defined(SLOW_CRC32)
+	return px4_bl_crc32((const uint8_t*)p, len, sum);
+#endif
+}
 
 

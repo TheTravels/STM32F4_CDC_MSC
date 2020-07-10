@@ -936,12 +936,12 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     	// ACK
     	{
     		struct ZKHY_Frame_Emb_synca* const _synca = &_frame->DAT.Emb_synca;
-	    	unsigned short _crc16 = 0;
+	    	uint32_t _crc16 = 0;
 	    	_crc16 = 0;
 #ifdef FAST_CRC16
 	    	_crc16 = fast_crc16(_crc16, (const unsigned char*)(param_flash_start), param_flash_size);
 #else
-	    	_crc16 = slow_crc16(_crc16, (const unsigned char*)(param_flash_start), param_flash_size);
+	    	_crc16 = fw_crc(_crc16, (const unsigned char*)(param_flash_start), param_flash_size);
 #endif
     		memset(_frame, 0, sizeof(struct ZKHY_Frame_upload));
     		ZKHY_frame_upload_init(_frame, ZKHY_EMB_SYNCA);
@@ -1198,15 +1198,10 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     	struct ZKHY_Frame_Emb_boota* const _boota = &_frame->DAT.Emb_boota;
     	memset(_frame, 0, sizeof(struct ZKHY_Frame_upload));
     	ZKHY_frame_upload_init(_frame, ZKHY_EMB_BOOTA);
-    	unsigned short crc16 = 0;
+    	uint32_t crc16 = 0;
     	crc16 = 0;
-#ifdef FAST_CRC16
-    	crc16 = fast_crc16(crc16, (const unsigned char*)pfnVectors, 8);
-    	crc16 = fast_crc16(crc16, (const unsigned char*)(param_flash_start+8), Boot.total-8);
-#else
-    	crc16 = slow_crc16(crc16, (const unsigned char*)pfnVectors, 8);
-    	crc16 = slow_crc16(crc16, (const unsigned char*)(param_flash_start+8), Boot.total-8);
-#endif
+    	crc16 = fw_crc(crc16, (const unsigned char*)pfnVectors, 8);
+    	crc16 = fw_crc(crc16, (const unsigned char*)(param_flash_start+8), Boot.total-8);
     	//app_debug("[%s--%d] addr[0x%08X | 0x%04X] Boot.crc[0x%08X] crc16[0x%08X] \r\n", __func__, __LINE__, param_flash_start, Boot.total, Boot.crc, crc16);
     	if(Boot.crc==crc16)
     	{

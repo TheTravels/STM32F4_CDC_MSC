@@ -52,7 +52,7 @@
 
 /* USER CODE BEGIN INCLUDE */
 #include "Periphs/SRAM_diskio.h"
-#include "sd_diskio.h"
+//#include "sd_diskio.h"
 #include "Periphs/uart.h"
 /* USER CODE END INCLUDE */
 
@@ -93,7 +93,7 @@
   * @{
   */
 
-#define STORAGE_LUN_NBR                  2
+#define STORAGE_LUN_NBR                  1
 //#define STORAGE_BLK_NBR                  0x10000
 #define STORAGE_BLK_SIZ                  0x200
 
@@ -310,7 +310,8 @@ int8_t STORAGE_Read_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t bl
 {
   /* USER CODE BEGIN 6 */
 #if (1==STORAGE_LUN_NBR)
-	sram_disk_read(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+	//sram_disk_read(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+	sram_disk_read(buf, blk_addr, blk_len);
 #else
 	switch(lun)
 	{
@@ -345,7 +346,8 @@ int8_t STORAGE_Write_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t b
 {
   /* USER CODE BEGIN 7 */
 #if (1==STORAGE_LUN_NBR)
-  sram_disk_write(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+	//sram_disk_write(buf, blk_addr*STORAGE_BLK_SIZ, blk_len*STORAGE_BLK_SIZ);
+	sram_disk_write(buf, blk_addr, blk_len);
 #else
 	switch(lun)
 	{

@@ -21,11 +21,26 @@ extern "C" {
 #define FAST_CRC16     1
 #undef  FAST_CRC16
 
+#define SLOW_CRC16     1
+#undef  SLOW_CRC16
+
+#define SLOW_CRC32     1
+//#undef  SLOW_CRC32
+
 // 计算 CRC
 #ifdef FAST_CRC16
 extern unsigned short fast_crc16(unsigned short sum, const unsigned char *p, unsigned int len);
 #endif
+
+#ifdef SLOW_CRC16
 extern unsigned short slow_crc16(unsigned short sum, const unsigned char *p, unsigned int len);
+#endif
+
+#ifdef SLOW_CRC32
+extern uint32_t px4_bl_crc32(const uint8_t *src, unsigned len, unsigned state);
+#endif
+
+extern uint32_t fw_crc(const uint32_t sum, const unsigned char *p, const unsigned int len);
 
 #ifdef __cplusplus
 }
