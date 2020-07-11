@@ -1087,7 +1087,7 @@ enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps, const void* const _data,
 
 	return ret;
 }
-static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t socket, const void* const _data, const uint16_t _len)
+static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t socket, void* const _data, const uint16_t _len, uint16_t* const _rlen)
 {
 	enum ec20_resp ret=EC20_RESP_OK;
     //COMM_GPRS *const module = ((COMM_T*)p)->module;
@@ -1114,9 +1114,10 @@ static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t s
         //
         //OK
         //resp=at_get_resps("+QIRD: ", NULL, NULL, NULL, NULL, 1000,100);
-        resp = at_get_resps("+QIRD: ", NULL, NULL, 1000, 50, &_ofps->_at);
+        resp = at_get_resps("+QIRD: ", NULL, NULL, 1000, 100, &_ofps->_at);
         if(0 == resp)
         {
+        	int i;
             //if(1==at_resp_parse_args(CommGprs.Line, "+QIRD: ", "%d\r\n", &_length))
         	if(at_get_resp_split_int(_ofps->_at._rbuf, QIRD, &_length, '\r', 1)>0)
             {
@@ -1128,7 +1129,7 @@ static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t s
         	    	break;
         	    }
         	    data += strlen(QIRD);
-        	    data=strstr(_ofps->_at._rbuf, "\r\n");
+        	    data=strstr(data, "\r\n");
         	    if(NULL==data)
         	    {
         	    	ret=EC20_RESP_ERROR;
@@ -1136,7 +1137,16 @@ static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t s
         	    }
         	    data += 2;
         	    //app_debug("[%s--%d] _rsize[%d] _rbuf[%s] data[%s]\r\n", __func__, __LINE__, _ofps->_at._rsize, _ofps->_at._rbuf, data);
-        	    app_debug("[%s--%d] _rsize[%d]\r\n", __func__, __LINE__, _ofps->_at._rsize);
+        	    //app_debug("[%s--%d] _rsize[%d]: \r\n", __func__, __LINE__, _ofps->_at._rsize);
+        	    //for(i=0; i<_ofps->_at._rsize; i++) app_debug("%c", _ofps->_at._rbuf[i]);
+        	    //app_debug("[%s--%d] i[%d]\r\n", __func__, __LINE__, i);
+        	    if(NULL!=_data)
+        	    {
+        	    	memset(_data, 0, _len);
+        	    	if(_length>=_len) _length = _len;
+        	    	memcpy(_data, data, _length);
+        	    	*_rlen = _length;
+        	    }
                 state = 0xFF;
             }
             else state = 0xFF;
@@ -1147,7 +1157,7 @@ static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t s
         }
         else
         {
-        	app_debug("AT+QIRD=%d,1024 error!\r\n", socket);
+        	//app_debug("AT+QIRD=%d,1024 error!\r\n", socket);
             err--;
             HAL_Delay(100);
         }
@@ -1169,9 +1179,9 @@ static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t s
 //    }
     return ret;
 }
-enum ec20_resp EC20_Read(struct ec20_ofps* const _ofps, const void* const _data, const uint16_t _len)
+enum ec20_resp EC20_Read(struct ec20_ofps* const _ofps, void* const _data, const uint16_t _len, uint16_t* const _rlen)
 {
-	return __EC20_Read(_ofps, _ofps->SocketID, _data, _len);
+	return __EC20_Read(_ofps, _ofps->SocketID, _data, _len, _rlen);
 }
 
 extern enum ec20_resp EC20_PowerOff(struct ec20_ofps* const _ofps);
@@ -1179,7 +1189,7 @@ extern enum ec20_resp EC20_PowerOff(struct ec20_ofps* const _ofps);
 void EC20_Test(void)
 {
 	enum ec20_resp ret;
-	char data[1024];
+	char data[1024+1];
 	int resp;
 	uint32_t tick_start = HAL_GetTick();
 	uint32_t tick_end;
@@ -1203,11 +1213,14 @@ void EC20_Test(void)
 	// 收发测试
 	tick_start = HAL_GetTick();
 	app_debug("[%s-%d] tick_start[%d] ...\r\n", __func__, __LINE__, tick_start);
-	for(int i=0; i<30; i++)
+	for(int i=0; i<2; i++)
 	{
+		uint16_t _rlen=0;
 		memset(data, '0'+(i%10), sizeof(data));
-		if(EC20_RESP_OK==ret) ret = EC20_Send(&_ec20_ofps, data, sizeof(data));
-		if(EC20_RESP_OK==ret) ret = EC20_Read(&_ec20_ofps, NULL, 1024+100);
+		if(EC20_RESP_OK==ret) ret = EC20_Send(&_ec20_ofps, data, sizeof(data)-1);
+		memset(data, 0, sizeof(data));
+		if(EC20_RESP_OK==ret) ret = EC20_Read(&_ec20_ofps, data, sizeof(data), &_rlen);
+		app_debug("[%s-%d] _rlen[%d] data:[%s]\r\n", __func__, __LINE__, _rlen, data);
 	}
 	tick_end = HAL_GetTick();
 	app_debug("[%s-%d] tick_start[%d] tick_start[%d] time[%d] ms\r\n", __func__, __LINE__, tick_start, tick_end, tick_end-tick_start);

@@ -123,7 +123,7 @@ extern enum ec20_resp EC20_Idle(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_GetCSQ(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_GetPosition(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps, const void* const _data, const uint16_t _len);
-extern enum ec20_resp EC20_Read(struct ec20_ofps* const _ofps, const void* const _data, const uint16_t _len);
+extern enum ec20_resp EC20_Read(struct ec20_ofps* const _ofps, void* const _data, const uint16_t _len, uint16_t* const _rlen);
 extern enum ec20_resp EC20_PowerOff(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_SetWIFI(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_SetGNSS(struct ec20_ofps* const _ofps);

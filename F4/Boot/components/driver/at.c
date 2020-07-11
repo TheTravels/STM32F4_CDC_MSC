@@ -18,7 +18,7 @@
 #include "stm32f4xx_hal.h"
 
 // 接收缓存
-//static uint8_t _ccm __attribute__ ((aligned (4))) at_data[1024*4];
+static uint8_t _ccm __attribute__ ((aligned (4))) at_data[1024*4];
 
 // AT 设备发送命令
 int at_print(char *fmt, ...)
@@ -45,7 +45,7 @@ int at_get_resps(const char resp[], const char resp_ok[], const char resp_err[],
 	uint32_t timeout;
 	int rlen;
 	int len;
-	//int i;
+	int i;
 	uint16_t index;
     const char* const resps[3] = {resp, resp_ok, resp_err};
     // 读取模块响应
@@ -56,15 +56,15 @@ int at_get_resps(const char resp[], const char resp_ok[], const char resp_err[],
     	// 读取数据
     	HAL_Delay(dt);
     	// int uart1_read(uint8_t buf[], const uint32_t _size)
-    	rlen += uart1_read((uint8_t*)&_at->_rbuf[rlen], sizeof(_at->_rbuf)-rlen);
+    	//rlen += uart1_read((uint8_t*)&_at->_rbuf[rlen], sizeof(_at->_rbuf)-rlen);
     	// 使用编译器知道大小的缓存,避免由于存在安全风险而优化掉数据拷贝操作
-//    	memset(at_data, 0, sizeof(at_data));
-//    	len = uart1_read(at_data, sizeof(at_data));
-//    	for(i=0; i<len; i++)
-//    	{
-//    		if(rlen+i<_rsize) _rbuf[rlen+i] = at_data[i];
-//    	}
-//    	rlen += len;
+    	memset(at_data, 0, sizeof(at_data));
+    	len = uart1_read(at_data, sizeof(at_data));
+    	for(i=0; i<len; i++)
+    	{
+    		if(rlen+i<sizeof(_at->_rbuf)) _at->_rbuf[rlen+i] = at_data[i];
+    	}
+    	rlen += len;
     	//app_debug("[%s-%d] AT<-- <%d--%d | %s> \r\n", __func__, __LINE__, sizeof(_at->_rbuf), rlen, _at->_rbuf);
     	//app_debug("[%s-%d] _w:%d _r:%d buf:%s data:%s \r\n", __func__, __LINE__, UART1_RX_cache.index_w, UART1_RX_cache.index_r, UART1_RX_cache.buf, _rbuf);
     	//uart3_send((const uint8_t)_rbuf, rlen);
@@ -78,14 +78,14 @@ int at_get_resps(const char resp[], const char resp_ok[], const char resp_err[],
             	for(count=0; count<20; count++)
             	{
             		HAL_Delay(10);
-            		len = uart1_read((uint8_t*)&_at->_rbuf[rlen], sizeof(_at->_rbuf)-rlen);
-//                	memset(at_data, 0, sizeof(at_data));
-//                	len = uart1_read(at_data, sizeof(at_data));
+            		//len = uart1_read((uint8_t*)&_at->_rbuf[rlen], sizeof(_at->_rbuf)-rlen);
+                	memset(at_data, 0, sizeof(at_data));
+                	len = uart1_read(at_data, sizeof(at_data));
             		if(len<=0) break;
-//                	for(i=0; i<len; i++)
-//                	{
-//                		if(rlen+i<_rsize) _rbuf[rlen+i] = at_data[i];
-//                	}
+                	for(i=0; i<len; i++)
+                	{
+                		if(rlen+i<sizeof(_at->_rbuf)) _at->_rbuf[rlen+i] = at_data[i];
+                	}
                 	rlen += len;
             	}
             	//app_debug("[%s-%d] AT<-- [%s] \r\n", __func__, __LINE__, _at->_rbuf);

@@ -144,9 +144,10 @@ int cdc_read(uint8_t buf[], const uint32_t _size)
 	//__asm("CPSIE  I");
 	return index;
 }
+static _ccm char debug_text[1024*2];
 int app_debug(const char *__format, ...)
 {
-	char debug_text[512];
+	//char debug_text[512];
 	va_list ap;
     // 判断日志级别
     //if(LOG_LEVEL_DEBUG<_log_level) return -1;
