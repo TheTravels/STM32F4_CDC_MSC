@@ -40,7 +40,7 @@ int at_print(char *fmt, ...)
     return len;
 }
 // 获取 AT 指令响应, 3个 resp 满足大多数需求
-int at_get_resps(const char resp[], const char resp_ok[], const char resp_err[], const uint32_t _timeout, const uint16_t dt, struct at_data* const _at)
+int at_get_resps(const char resp[], const char resp_ok[], const char resp_err[], const uint32_t _timeout, const uint16_t dt, struct at_ofps* const _at)
 {
 	uint32_t timeout;
 	int rlen;
@@ -49,7 +49,7 @@ int at_get_resps(const char resp[], const char resp_ok[], const char resp_err[],
 	uint16_t index;
     const char* const resps[3] = {resp, resp_ok, resp_err};
     // 读取模块响应
-    memset(_at, 0, sizeof(struct at_data));
+    memset(_at->_rbuf, 0, sizeof(_at->_rbuf));
     rlen = 0;
     for(timeout=0; timeout<_timeout; timeout+=dt)
     {
@@ -77,7 +77,7 @@ int at_get_resps(const char resp[], const char resp_ok[], const char resp_err[],
             	// 400ms 用于接收为接收完的数据
             	for(count=0; count<20; count++)
             	{
-            		HAL_Delay(20);
+            		HAL_Delay(10);
             		len = uart1_read((uint8_t*)&_at->_rbuf[rlen], sizeof(_at->_rbuf)-rlen);
 //                	memset(at_data, 0, sizeof(at_data));
 //                	len = uart1_read(at_data, sizeof(at_data));
@@ -86,6 +86,45 @@ int at_get_resps(const char resp[], const char resp_ok[], const char resp_err[],
 //                	{
 //                		if(rlen+i<_rsize) _rbuf[rlen+i] = at_data[i];
 //                	}
+                	rlen += len;
+            	}
+            	//app_debug("[%s-%d] AT<-- [%s] \r\n", __func__, __LINE__, _at->_rbuf);
+            	_at->_rsize = rlen;
+                return index;
+            }
+    	}
+    }
+    //app_debug("[%s-%d] AT<-- [%s] \r\n", __func__, __LINE__, _at->_rbuf);
+    _at->_rsize = rlen;
+    return -2;
+}
+int at_get_resp4s(const char resp1[], const char resp2[], const char resp3[], const char resp4[], const uint32_t _timeout, const uint16_t dt, struct at_ofps* const _at)
+{
+	uint32_t timeout;
+	int rlen;
+	int len;
+	uint16_t index;
+    const char* const resps[4] = {resp1, resp2, resp3, resp4};
+    // 读取模块响应
+    memset(_at->_rbuf, 0, sizeof(_at->_rbuf));
+    rlen = 0;
+    for(timeout=0; timeout<_timeout; timeout+=dt)
+    {
+    	// 读取数据
+    	HAL_Delay(dt);
+    	rlen += uart1_read((uint8_t*)&_at->_rbuf[rlen], sizeof(_at->_rbuf)-rlen);
+    	for(index=0; index<4; index++)
+    	{
+    		if(NULL==resps[index]) continue;
+            if(NULL != strstr((const char *)_at->_rbuf, resps[index]))
+            {
+            	int count;
+            	// 400ms 用于接收未接收完的数据
+            	for(count=0; count<20; count++)
+            	{
+            		HAL_Delay(20);
+            		len = uart1_read((uint8_t*)&_at->_rbuf[rlen], sizeof(_at->_rbuf)-rlen);
+            		if(len<=0) break;
                 	rlen += len;
             	}
             	app_debug("[%s-%d] AT<-- [%s] \r\n", __func__, __LINE__, _at->_rbuf);
@@ -101,6 +140,7 @@ int at_get_resps(const char resp[], const char resp_ok[], const char resp_err[],
 // 获取数据
 int at_get_datas(const char resp[], const char resp_err[], const uint32_t timeout, char _rbuf[], const uint16_t _rsize)
 {
+	return -2;
 }
 /*******************************************************************************
  * 功能:搜索字符串 src 中 separator 分隔的第 nFieldNum 段数据
@@ -175,6 +215,26 @@ uint8_t at_get_resp_split_int(const char src[], const char resp[], int* const va
         return len;
     }
     return 0;
+}
+/*******************************************************************************
+ * 功能:搜索字符串 src 中 resp 后面的参数,以换行结尾
+ * resp:字符串
+ * args:参数
+ * val:缓存
+ *******************************************************************************/
+uint8_t at_get_resp_args_int(const char src[], const char resp[], const char args[], int* const val)
+{
+    const char *Resp = NULL;
+    // 匹配响应 resp
+    Resp = strstr(src, resp);
+    if(NULL==Resp) return 0;
+    Resp += strlen(resp);
+    // 匹配响应 args
+    Resp = strstr(Resp, args);
+    if(NULL==Resp) return 0;
+    Resp += strlen(args);
+    *val = atoi(Resp);
+    return 1;
 }
 
 

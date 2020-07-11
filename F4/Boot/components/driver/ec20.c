@@ -19,13 +19,25 @@
 
 static const char ReturnOK[] = "\r\nOK";
 static const char ReturnERROR[] = "\r\nERROR";
+static const char ReturnSENDFAIL[]="SEND FAIL";
+static const char ReturnA[] = ">";
+
+static const char ReturnPdpDeactivation[] = "\r\n+QIURC: \"pdpdeact\",";
+static const char ReturnSocket_closed[] = "\r\n+QIURC: \"closed\",";
+static const char ReturnRecv[] = "\r\n+QIURC: \"recv\",";
 
 //static char _ccm __attribute__ ((aligned (4))) ec20_data[1024*4];
 
 static struct ec20_ofps _ccm __attribute__ ((aligned (4))) _ec20_ofps = {
+		._at = {
+				.uart_send = uart1_send,
+				.uart_read = uart1_read,
+				.uart_size = uart1_size,
+				.uart_is_empty = uart1_isempty,
+		},
 		.NetInfo = {
 				.NADR = "39.108.51.99",
-				.PORT = 9910,
+				.PORT = 9919,
 				.APN  = "UNIM2M.NJM2MAPN",
 				.IP   = "",
 				.NUSER = "",
@@ -96,6 +108,11 @@ enum ec20_resp EC20_Set(struct ec20_ofps* const _ofps)
     //_ofps->socket2 = 0;
     state = 0;
     err = 3;
+#if 1
+    at_print("AT+IPR=460800\r\n");// 更改波特率
+    USART1_Init(460800);
+    HAL_Delay(500);
+#endif
     while(err && (state != 0xFF))
     {
     	switch(state)
@@ -808,23 +825,371 @@ enum ec20_resp EC20_Disconnect(struct ec20_ofps* const _ofps)
 
     return ret;
 }
-extern enum ec20_resp EC20_Idle(struct ec20_ofps* const _ofps);
+enum ec20_resp EC20_Idle(struct ec20_ofps* const _ofps)
+{
+	enum ec20_resp ret=EC20_RESP_OK;
+    int resp;
+
+    //if(rt_sem_trytake(module->RxIntSem) == RT_EOK)
+    if(0==_ofps->_at.uart_is_empty())
+    {
+        while(1)
+        {
+            //const char * res[]={ReturnRecv,ReturnSocket_closed,ReturnPdpDeactivation};
+            //resp=GetRes(res,sizeof(res)/sizeof(const char*),100,100);
+            //resp=at_get_resps(ReturnRecv, ReturnSocket_closed, ReturnPdpDeactivation, "OK\r\n", NULL, 100,100);
+            resp = at_get_resp4s(ReturnRecv, ReturnSocket_closed, ReturnPdpDeactivation, "OK\r\n", 3000, 200, &_ofps->_at);
+            //usb_debug("[%s--%d] CommGprs.Line<%s> \r\n", __func__, __LINE__, CommGprs.Line);
+            if(0 == resp)//下发数据
+            {
+                int connectID;
+                // +QIURC: "recv",<connectID>
+                //if(1==at_resp_parse_args(CommGprs.Line, "+QIURC: ", "\"recv\",%d", &connectID))
+                if(at_get_resp_args_int(_ofps->_at._rbuf, "+QIURC: ", "\"recv\",%d", &connectID)>0)
+                {
+                    // 主连接断开,重连
+                    if(connectID == _ofps->SocketID) _ofps->Recv_flag = 1;
+                    //if(connectID == module->SocketID) SeverRecv(module);
+                }
+            }
+            else if(1 == resp)//socket关闭，重连
+            {
+                int connectID;
+                // +QIURC: "closed",<connectID>
+                //if(1==at_resp_parse_args(CommGprs.Line, "+QIURC: ", "\"closed\",%d", &connectID))
+                if(at_get_resp_args_int(_ofps->_at._rbuf, "+QIURC: ", "\"closed\",%d", &connectID)>0)
+                {
+                    // 主连接断开,重连
+                    if(connectID == _ofps->SocketID) _ofps->State.b.ReqReConnect=1;
+                }
+            }
+            else if(3==resp)
+            {
+                break;
+            }
+            else if(resp > 1)
+            {
+            	_ofps->ModuleState = EC20_MODULE_SET;
+            	_ofps->State.b.Connected = 0;
+            	_ofps->State.b.ReConnect = 1;
+                break;
+            }
+            else
+            {
+                // AT+QISTATE=<query_type>,<connectID>
+                /*
++QISTATE:
+<connectID>,<service_type>,<IP_address>,<remote_port>
+,<local_port>,<socket_state>,<contextID>,<serverID>,<ac
+cess_mode>,<AT_port>
+
+OK
+                */
+            	at_print("AT+QISTATE=1,%d\r", _ofps->SocketID);
+                //resp=at_get_resps("+QISTATE: ", NULL, NULL, NULL, NULL, 100,100);
+            	resp = at_get_resps("+QISTATE: ", ReturnERROR, NULL, 100,100, &_ofps->_at);
+                if(0==resp)
+                {
+                    int connectID=-1;
+                    int socket_state=-1;
+                    //int num1 = 0;
+                    //int num2 = 0;
+                    //num1 = at_resp_parse_split_args(CommGprs.Line, "+QISTATE: ", ',', 1, "%d,", &connectID);
+                    //num2 = at_resp_parse_split_args(CommGprs.Line, "+QISTATE: ", ',', 6, "%d,", &socket_state);
+                    at_get_resp_split_int(_ofps->_at._rbuf, "+QISTATE: ", &connectID, ',', 1);
+                    at_get_resp_split_int(_ofps->_at._rbuf, "+QISTATE: ", &socket_state, ',', 6);
+                    //   2        “Connected”: client/incoming connection has been established
+                    //if((1==num1) && (1==num2) && (connectID==module->SocketID) && (2!=socket_state))
+                    if((connectID==_ofps->SocketID) && (2!=socket_state) && (-1!=socket_state))
+                    {
+                        // 主连接断开,重新设置模块
+                    	_ofps->ModuleState = EC20_MODULE_SET;
+                    	_ofps->State.b.Connected = 0;
+                    	_ofps->State.b.ReConnect = 1;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    return ret;
+}
 extern enum ec20_resp EC20_GetCSQ(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_GetPosition(struct ec20_ofps* const _ofps);
-extern enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps);
+enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps, const void* const _data, const uint16_t _len)
+{
+	enum ec20_resp ret=EC20_RESP_OK;
+	int resp;
+	uint8_t state;
+	uint8_t err;
+	const char *const data0 = (const char *)_data;//((COMM_T*)p)->data;
+	uint16_t len0 = _len;//((COMM_T*)p)->len;
+	uint16_t n=0;
+	//char * res[]={"SEND OK",(char*)ReturnSENDFAIL,(char*)ReturnERROR};
+
+	//char num[20];
+#if 0
+	if(RT_EOK != module_gprs_take(RT_WAITING_FOREVER))
+	{
+		((COMM_T*)p)->ret = -RT_ERROR;
+		return RT_EIO;
+	}
+
+	if(module->ModuleState != MODULE_IDLE)
+	{
+		((COMM_T*)p)->ret = -RT_ERROR;
+		return RT_EBUSY;
+	}
+#endif
+
+	state = 1;
+	err = 3;
+	const char *data=data0;
+	uint16_t len=len0;
+	while(err && (state != 0xFF))
+	{
+		switch(state)
+		{
+
+		case 1:
+			if(len > 0)
+			{
+				int total_send_length=-1, ackedbytes=-1, unackedbytes=-1;
+				uint16_t alen=0;
+				int flag=0;
+				at_print("AT+QISEND=%d,0\r",_ofps->SocketID);
+				//resp = GetRes(0,0,2000,100);
+				resp = at_get_resps("+QISEND: ", ReturnERROR, NULL, 2000, 50, &_ofps->_at);
+				if(-1 != resp)
+				{
+					// +QISEND:
+					//<total_send_length>,<ackedbytes>,<unackedbytes>
+					//if(3==at_resp_parse_args(CommGprs.Line, "+QISEND: ", "%d,%d,%d", &total_send_length, &ackedbytes, &unackedbytes))
+					at_get_resp_split_int(_ofps->_at._rbuf, "+QISEND: ", &total_send_length, ',', 1);
+					at_get_resp_split_int(_ofps->_at._rbuf, "+QISEND: ", &ackedbytes, ',', 2);
+					at_get_resp_split_int(_ofps->_at._rbuf, "+QISEND: ", &unackedbytes, ',', 3);
+					if(unackedbytes>=0)
+					{
+						alen=unackedbytes;
+						flag=1;
+					}
+				}
+				if(!flag)
+				{
+					err--;
+					break;
+				}
+				// +QISEND: (0-11),(0-1460) ,这里取 1024为保留部分缓存
+				uint16_t slen=1024;
+				if(alen<slen) slen-=alen;
+				//usb_debug("[%s--%d] CommGprs.Line<%s> \r\n", __func__, __LINE__, CommGprs.Line);
+				//usb_debug("[%s--%d] len0<%d> len<%d> alen<%d> slen<%d>\r\n", __func__, __LINE__, len0, len, alen, slen);
+				//usb_debug("[%s--%d] total_send_length<%d> ackedbytes<%d> unackedbytes<%d>\r\n", __func__, __LINE__, total_send_length, ackedbytes, unackedbytes);
+				if(len > slen)
+				{
+					n = slen;
+					len -= slen;
+				}
+				else
+				{
+					n = len;
+					len = 0;
+				}
+				state = 2;
+			}
+			else
+				state = 0xFF;
+			break;
+		case 2:
+			at_print("AT+QISEND=%d,%d\r", _ofps->SocketID, n);
+			//resp = GetResponse(ReturnA,ReturnERROR, 200);
+			resp = at_get_resps(ReturnA, ReturnERROR, NULL, 200, 50, &_ofps->_at);
+			if(1 == resp)
+			{
+				state = 0xFF;
+				err = 0;
+			}
+			else
+			{
+				//                        err = 3;
+				state = 3;
+			}
+			break;
+		case 3:
+			//rt_snprintf(num,sizeof(num),"DATA ACCEPT:%d,%d",module->SocketID,n);
+			//rt_device_write(module->Dev, 0, data, n);
+			//app_debug("[%s--%d] uart_send ... _data[0x%08X] data0[0x%08X] data[0x%08X] \r\n", __func__, __LINE__, _data, data0, data);
+			//app_debug("[%s--%d] ...data[%d]:<%s>\r\n", __func__, __LINE__, n, data);
+			_ofps->_at.uart_send((const uint8_t*)data, n);
+			//uart1_send((const uint8_t*)data, n);
+			//app_debug("[%s--%d] ...\r\n", __func__, __LINE__);
+			//                resp = GetResponse(num, ReturnERROR, 3000);
+			//char * res[]={"SEND OK",(char*)ReturnSENDFAIL,(char*)ReturnERROR};
+			//resp=GetRes((const char **)res,sizeof(res)/sizeof(char*),3000,500);
+			resp = at_get_resps("SEND OK",(char*)ReturnSENDFAIL,(char*)ReturnERROR, 3000, 50, &_ofps->_at);
+			//app_debug("[%s--%d] uart_send ... end\r\n", __func__, __LINE__);
+			if((0 == resp))
+			{
+				/*{
+                        rt_kprintf("---send num:%d\r\n",n);
+                        uint16_t i;
+                        for(i=0;i<n;i++)
+                        {
+                            rt_kprintf("%02x ",*((uint8_t*)&data[i]));
+                        }
+                        rt_kprintf("\r\n");
+                    }*/
+				//                    rt_sprintf(num, "%d", n);
+				//                    pStr = rt_strstr((const char *)module->Line, num);
+				//                    if(pStr != RT_NULL)
+				{
+					_ofps->State.b.Sended=1;
+					data += n;
+					err = 3;
+					state = 1;
+				}
+				//                    else
+				//                    {
+				//                        err = 0;
+				//                        state = 0xFF;
+				//                    }
+			}
+			else
+			{
+				app_debug("--DATA ACCEPT:...ERROR!\r\n");
+				err --;
+				state = 1;
+				//重传
+				data=data0;
+				len=len0;
+			}
+			break;
+		default:
+			state = 0;
+			break;
+		}
+		HAL_Delay(30);
+	}
+
+	if(0 == err)
+	{
+		_ofps->ModuleState = EC20_MODULE_DISCONNECT;
+		//((COMM_T*)p)->ret = -RT_ERROR;
+		_ofps->State.b.Connected = 0;
+		_ofps->State.b.ReConnect = 1;
+		ret=EC20_RESP_ERROR;
+	}
+	//    else
+	//    {
+	//        ((COMM_T*)p)->ret = RT_EOK;
+	//    }
+
+	return ret;
+}
+static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t socket, const void* const _data, const uint16_t _len)
+{
+	enum ec20_resp ret=EC20_RESP_OK;
+    //COMM_GPRS *const module = ((COMM_T*)p)->module;
+    int resp;
+    uint8_t state;
+    uint8_t err;
+    uint16_t len;
+    uint16_t maxlen=_len;//recv->len;
+    const char* data = NULL;
+    const char QIRD[] = "+QIRD: ";
+    len = 0;
+    //recv->len = 0;
+    state = 0;
+    err = 5;
+    while(err && (state != 0xFF))
+    {
+        int _length=-1;
+        //int rlen=-1;
+        uint16_t dlen=maxlen-len;
+        // AT+QIRD=<connectID>[,<read_length>]
+        at_print("AT+QIRD=%d,%d\r", socket,dlen);
+        //resp = GetResp(recv);
+        //+QIRD: <read_actual_length><CR><LF><data>
+        //
+        //OK
+        //resp=at_get_resps("+QIRD: ", NULL, NULL, NULL, NULL, 1000,100);
+        resp = at_get_resps("+QIRD: ", NULL, NULL, 1000, 50, &_ofps->_at);
+        if(0 == resp)
+        {
+            //if(1==at_resp_parse_args(CommGprs.Line, "+QIRD: ", "%d\r\n", &_length))
+        	if(at_get_resp_split_int(_ofps->_at._rbuf, QIRD, &_length, '\r', 1)>0)
+            {
+        		// 查找数据区偏移
+        	    data=strstr(_ofps->_at._rbuf, QIRD);
+        	    if(NULL==data)
+        	    {
+        	    	ret=EC20_RESP_ERROR;
+        	    	break;
+        	    }
+        	    data += strlen(QIRD);
+        	    data=strstr(_ofps->_at._rbuf, "\r\n");
+        	    if(NULL==data)
+        	    {
+        	    	ret=EC20_RESP_ERROR;
+        	    	break;
+        	    }
+        	    data += 2;
+        	    //app_debug("[%s--%d] _rsize[%d] _rbuf[%s] data[%s]\r\n", __func__, __LINE__, _ofps->_at._rsize, _ofps->_at._rbuf, data);
+        	    app_debug("[%s--%d] _rsize[%d]\r\n", __func__, __LINE__, _ofps->_at._rsize);
+                state = 0xFF;
+            }
+            else state = 0xFF;
+//            if(recv->len==maxlen){//缓冲区满
+//                state=0xff;
+//                continue;
+//            }
+        }
+        else
+        {
+        	app_debug("AT+QIRD=%d,1024 error!\r\n", socket);
+            err--;
+            HAL_Delay(100);
+        }
+        HAL_Delay(10);
+    }
+
+    if(0 == err)
+    {
+        //recv->ret = -RT_ERROR;
+        _ofps->ModuleState = EC20_MODULE_SET;
+        _ofps->State.b.Connected = 0;
+        _ofps->State.b.ReConnect = 1;
+        ret=EC20_RESP_ERROR;
+    }
+//    else
+//    {
+//        //recv->len=len;
+//        ret = RT_EOK;
+//    }
+    return ret;
+}
+enum ec20_resp EC20_Read(struct ec20_ofps* const _ofps, const void* const _data, const uint16_t _len)
+{
+	return __EC20_Read(_ofps, _ofps->SocketID, _data, _len);
+}
+
 extern enum ec20_resp EC20_PowerOff(struct ec20_ofps* const _ofps);
 
 void EC20_Test(void)
 {
 	enum ec20_resp ret;
+	char data[1024];
 	int resp;
-	app_debug("[%s--%d] EC20 Test Start!\r\n", __func__, __LINE__);
-    app_debug("[%s-%d] read RDY ...\r\n", __func__, __LINE__);
+	uint32_t tick_start = HAL_GetTick();
+	uint32_t tick_end;
+	//app_debug("[%s--%d] EC20 Test Start!\r\n", __func__, __LINE__);
+    //app_debug("[%s-%d] read RDY ...\r\n", __func__, __LINE__);
     resp = at_get_resps("\r\nRDY\r\n", NULL, NULL, 12000, 1000, &_ec20_ofps._at);
 	if(0!=resp) EC20_Reset(&_ec20_ofps);
-	app_debug("[%s-%d] EC20_Set ...\r\n", __func__, __LINE__);
+	//app_debug("[%s-%d] EC20_Set ...\r\n", __func__, __LINE__);
 	ret = EC20_Set(&_ec20_ofps);
-	app_debug("[%s-%d] EC20_CheckRegister ...\r\n", __func__, __LINE__);
+	//app_debug("[%s-%d] EC20_CheckRegister ...\r\n", __func__, __LINE__);
 	if(EC20_RESP_OK==ret) ret = EC20_CheckRegister(&_ec20_ofps);
 	app_debug("[%s-%d] EC20_Ppp ...\r\n", __func__, __LINE__);
 	if(EC20_RESP_OK==ret) ret = EC20_Ppp(&_ec20_ofps);
@@ -832,6 +1197,20 @@ void EC20_Test(void)
 	if(EC20_RESP_OK==ret) ret = EC20_GetInformation(&_ec20_ofps);
 	app_debug("[%s-%d] EC20_Connect ...\r\n", __func__, __LINE__);
 	if(EC20_RESP_OK==ret) ret = EC20_Connect(&_ec20_ofps);
+	app_debug("[%s-%d] EC20_Send ...\r\n", __func__, __LINE__);
+	//if(EC20_RESP_OK==ret) ret = EC20_Send(&_ec20_ofps, "#####", 5);
+	//if(EC20_RESP_OK==ret) ret = EC20_Read(&_ec20_ofps, NULL, 100);
+	// 收发测试
+	tick_start = HAL_GetTick();
+	app_debug("[%s-%d] tick_start[%d] ...\r\n", __func__, __LINE__, tick_start);
+	for(int i=0; i<30; i++)
+	{
+		memset(data, '0'+(i%10), sizeof(data));
+		if(EC20_RESP_OK==ret) ret = EC20_Send(&_ec20_ofps, data, sizeof(data));
+		if(EC20_RESP_OK==ret) ret = EC20_Read(&_ec20_ofps, NULL, 1024+100);
+	}
+	tick_end = HAL_GetTick();
+	app_debug("[%s-%d] tick_start[%d] tick_start[%d] time[%d] ms\r\n", __func__, __LINE__, tick_start, tick_end, tick_end-tick_start);
 	HAL_Delay(500);
 	app_debug("[%s-%d] EC20_Disconnect ...\r\n", __func__, __LINE__);
 	if(EC20_RESP_OK==ret) ret = EC20_Disconnect(&_ec20_ofps);

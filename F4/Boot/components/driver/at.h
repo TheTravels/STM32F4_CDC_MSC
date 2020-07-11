@@ -19,7 +19,12 @@ extern "C" {
 #endif
 
 // 使用数据结构避免 gcc 将数据拷贝关键操作优化掉
-struct at_data{
+struct at_ofps{
+	// UART 操作接口函数
+	const int (* const uart_send)(const uint8_t data[], const uint32_t _size);
+	const int (* const uart_read)(uint8_t buf[], const uint32_t _size);
+	const int (* const uart_size)(void);
+	const int (* const uart_is_empty)(void);
 	char __attribute__ ((aligned (4))) _rbuf[1024*4];   // 缓存
 	uint16_t _rsize;         // 缓存中数据大小
 };
@@ -35,7 +40,8 @@ extern int at_print(char *fmt, ...);
  * dt:超时检测时间间隔 ms
  * _at:接收缓存
  *******************************************************************************/
-extern int at_get_resps(const char resp[], const char resp_ok[], const char resp_err[], const uint32_t _timeout, const uint16_t dt, struct at_data* const _at);
+extern int at_get_resps(const char resp[], const char resp_ok[], const char resp_err[], const uint32_t _timeout, const uint16_t dt, struct at_ofps* const _at);
+extern int at_get_resp4s(const char resp1[], const char resp2[], const char resp3[], const char resp4[], const uint32_t _timeout, const uint16_t dt, struct at_ofps* const _at);
 /*******************************************************************************
  * 功能:搜索字符串 src 中 separator 分隔的第 nFieldNum 段数据
  * src:字符串
@@ -60,6 +66,13 @@ extern int at_get_resp_split(const char src[], const char resp[], char dest[], c
  * nFieldNum:第几个段,从1开始
  *******************************************************************************/
 extern uint8_t at_get_resp_split_int(const char src[], const char resp[], int* const val, const char separator, const uint8_t nFieldNum);
+/*******************************************************************************
+ * 功能:搜索字符串 src 中 resp 后面的参数,以换行结尾
+ * resp:字符串
+ * args:参数
+ * val:缓存
+ *******************************************************************************/
+extern uint8_t at_get_resp_args_int(const char src[], const char resp[], const char args[], int* const val);
 
 
 #ifdef __cplusplus

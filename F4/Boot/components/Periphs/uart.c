@@ -93,6 +93,14 @@ int uart1_read(uint8_t buf[], const uint32_t _size)
 	//__asm("CPSIE  I");
 	return index;
 }
+int uart1_size(void)
+{
+	return cache_queue_size(&UART1_RX_cache);
+}
+int uart1_isempty(void)
+{
+	return cache_queue_isempty(&UART1_RX_cache);
+}
 int uart2_send(const uint8_t data[], const uint32_t _size)
 {
 	return usart_send(USART2, data, _size);

@@ -59,7 +59,7 @@ enum ec20_resp{
 
 struct ec20_ofps{
 	//char data[1024*4];
-	struct at_data _at;
+	struct at_ofps _at;
 	enum ec20_module_state ModuleState;
 	union
 	{
@@ -109,6 +109,7 @@ struct ec20_ofps{
 	uint8_t SocketID;//套接字ID
 	uint8_t socket2; //多路 TCP 连接
 	//GPRS_NET_ADDR Net2; //多路 TCP连接服务器相关参数
+	uint8_t Recv_flag;    // 接收标志
 };
 
 extern enum ec20_resp EC20_Reset(struct ec20_ofps* const _ofps);
@@ -121,8 +122,15 @@ extern enum ec20_resp EC20_Disconnect(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_Idle(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_GetCSQ(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_GetPosition(struct ec20_ofps* const _ofps);
-extern enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps);
+extern enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps, const void* const _data, const uint16_t _len);
+extern enum ec20_resp EC20_Read(struct ec20_ofps* const _ofps, const void* const _data, const uint16_t _len);
 extern enum ec20_resp EC20_PowerOff(struct ec20_ofps* const _ofps);
+extern enum ec20_resp EC20_SetWIFI(struct ec20_ofps* const _ofps);
+extern enum ec20_resp EC20_SetGNSS(struct ec20_ofps* const _ofps);
+extern enum ec20_resp EC20_GetClients(struct ec20_ofps* const _ofps);
+extern enum ec20_resp EC20_GetTime(struct ec20_ofps* const _ofps);
+extern enum ec20_resp EC20_Send2(struct ec20_ofps* const _ofps);
+extern enum ec20_resp EC20_Read2(struct ec20_ofps* const _ofps);
 
 extern void EC20_Test(void);
 

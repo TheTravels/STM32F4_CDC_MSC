@@ -30,6 +30,56 @@ static __inline void init_queue(cache_queue* const _queue)
 		memset(_queue, 0, sizeof(cache_queue)); 
 		_queue->index_r = sizeof(_queue->buf)-1;
 }
+/*
+ * cache_queue1: size = index_w - index_r - 1;
+ *           |-----------------|
+ *           | empty           |
+ * index_w   | empty           |
+ *           |                 |
+ *        ...| data            |
+ *           |                 |
+ * index_r   | empty           |
+ *           |                 |
+ *        ...| empty           |
+ *           |                 |
+ *           |------start------|
+ * cache_queue2: size = index_w + SIZE - index_r - 1;
+ *           |-----------------|
+ *           | data            |
+ * index_r   | empty           |
+ *           |                 |
+ *        ...| empty           |
+ *           |                 |
+ * index_w   | empty           |
+ *           |                 |
+ *        ...| data            |
+ *           |                 |
+ *           |------start------|
+ */
+// 判断缓存是否为空
+static __inline uint16_t cache_queue_isempty(const cache_queue* const _queue)
+{
+	uint16_t r_tmp;
+	r_tmp = _queue->index_r+1;
+	if(r_tmp>=sizeof(_queue->buf)) r_tmp=0;
+	if(r_tmp == _queue->index_w) return 1;  /* empty */
+	return 0;
+}
+// 获取缓存中数据长度
+static __inline uint16_t cache_queue_size(const cache_queue* const _queue)
+{
+	uint16_t r_tmp;
+	uint16_t index_w = _queue->index_w;
+	r_tmp = _queue->index_r+1;
+	if(r_tmp>=sizeof(_queue->buf)) r_tmp=0;
+	if(index_w>=r_tmp) return (index_w-r_tmp); // 数据长度
+	// 循环队列, index_w<r_tmp
+	else
+	{
+		return (index_w+sizeof(_queue->buf)-r_tmp);
+	}
+}
+
 #define macro_queue_read(index,buf,_size,_queue)  do{ \
 			memset(buf, 0, _size); \
 			for(index=0; index<_size; index++) \

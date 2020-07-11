@@ -72,6 +72,8 @@ extern void uartx_queue_init(void);
 /*_____________________________________________________________ UART1 ________________________________________________________________*/
 extern int uart1_send(const uint8_t data[], const uint32_t _size);
 extern int uart1_read(uint8_t buf[], const uint32_t _size);
+extern int uart1_size(void);
+extern int uart1_isempty(void);
 /*_____________________________________________________________ UART2 ________________________________________________________________*/
 extern int uart2_send(const uint8_t data[], const uint32_t _size);
 extern int uart2_read(uint8_t buf[], const uint32_t _size);
