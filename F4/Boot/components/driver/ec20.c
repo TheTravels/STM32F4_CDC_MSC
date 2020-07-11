@@ -1117,7 +1117,7 @@ static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t s
         resp = at_get_resps("+QIRD: ", NULL, NULL, 1000, 100, &_ofps->_at);
         if(0 == resp)
         {
-        	int i;
+        	//int i;
             //if(1==at_resp_parse_args(CommGprs.Line, "+QIRD: ", "%d\r\n", &_length))
         	if(at_get_resp_split_int(_ofps->_at._rbuf, QIRD, &_length, '\r', 1)>0)
             {

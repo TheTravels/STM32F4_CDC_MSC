@@ -53,7 +53,19 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
+enum Interface_uart{
+	INTER_UART_NONE  = 0x00,
+	INTER_UART1      = 0x01,
+	INTER_UART2      = 0x02,
+	INTER_UART3      = 0x03,
+	INTER_UART_CDC   = 0x04,
+};
 
+extern enum Interface_uart inter_uart;
+extern uint8_t vbus_high_count;
+extern uint8_t vbus_low_count;
+extern uint8_t vbus_connect;
+extern uint32_t led_tick;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

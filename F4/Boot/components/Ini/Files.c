@@ -203,7 +203,8 @@ uint32_t file_crc16(const char* filename, void* const buffer, const uint16_t bsi
     long _seek=0;
     long rsize=0;
     uint32_t checksum = 0x12345678;
-    unsigned short sum = 0;
+    //unsigned short sum = 0;
+    uint32_t sum = 0;
     _size = file_size(filename);
     //printf("%s@%d _size:%ld\n", __func__, __LINE__, _size); fflush(stdout);
     rsize=0;
@@ -217,7 +218,7 @@ uint32_t file_crc16(const char* filename, void* const buffer, const uint16_t bsi
         memset(filebin, 0xFF, bsize);
         //read(fd, filebin, (size_t)rsize);
         file_read_seek(filename, _seek, filebin, (size_t)rsize);
-        sum = fast_crc16(sum, (unsigned char *)filebin, rsize);
+        sum = fw_crc(sum, (unsigned char *)filebin, rsize);
     }
     checksum = sum;
     return checksum;
@@ -229,7 +230,8 @@ uint32_t flash_crc16(const uint32_t flash_addr, const uint32_t flash_size, void*
     long _seek=0;
     long rsize=0;
     uint32_t checksum = 0x12345678;
-    unsigned short sum = 0;
+    //unsigned short sum = 0;
+    uint32_t sum = 0;
     //printf("%s@%d _size:%ld\n", __func__, __LINE__, _size); fflush(stdout);
     rsize=0;
     checksum = 0;
@@ -243,7 +245,7 @@ uint32_t flash_crc16(const uint32_t flash_addr, const uint32_t flash_size, void*
         //read(fd, filebin, (size_t)rsize);
         //file_read_seek(filename, _seek, filebin, (size_t)rsize);
         memcpy(filebin, &flash[_seek], rsize);
-        sum = fast_crc16(sum, (unsigned char *)filebin, rsize);
+        sum = fw_crc(sum, (unsigned char *)filebin, rsize);
     }
     checksum = sum;
     return checksum;
