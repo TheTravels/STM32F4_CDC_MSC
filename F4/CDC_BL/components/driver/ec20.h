@@ -145,7 +145,7 @@ extern void EC20_Test(void);
 extern enum ec20_resp EC20_FTP_Login(struct ec20_ofps* const _ofps, const char host[], const int port, const int contextID, const char user[], const char passwd[]);
 extern enum ec20_resp FTP_DownLoad_RAM(struct ec20_ofps* const _ofps, const char dir[], const char filename[], void(*const save_seek)(const int total, const uint32_t _seek, const char data[], const uint16_t block));
 extern int EC20_FTP_Test(void);
-extern int EC20_FTP_Upload(void);
+extern int EC20_FTP_Upload(const char hardware[], const char SN[], const char ftp[], const int port, const char user[], const char passwd[]);
 
 
 struct ec20_ofps _ec20_ofps;

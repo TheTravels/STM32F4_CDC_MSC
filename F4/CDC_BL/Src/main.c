@@ -107,6 +107,16 @@ extern uint8_t read_uid(uint8_t uid[]);
 //static uint8_t send_buf[256];
 extern uint32_t sign_flag;
 extern void first_sign_chip(void);
+static const char Param_name[] = "Param";
+static const char Param_key_sn[] = "SN";
+//static const char Param_key_host[] = "Host";
+//static const char Param_key_port[] = "Port";
+static const char Param_key_ftph[] = "FTPH";
+static const char Param_key_ftpp[] = "FTPP";
+static const char Param_key_user[] = "user";
+static const char Param_key_passwd[] = "pass";
+//static const char Param_key_time[] = "Time";
+extern void verify_chip(void);
 
 /* USER CODE END 0 */
 
@@ -116,67 +126,95 @@ extern void first_sign_chip(void);
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
+	/* USER CODE BEGIN 1 */
 	//static uint8_t send_buf[256];
-    //int len=0;
-    //int bl_len;
+	//int len=0;
+	//int bl_len;
 	//uint32_t crc;
 	uint32_t addr = (uint32_t)&first_sign_chip;
 	addr = addr-(addr&0x03);  // 对齐
-    //HAL_SD_CardInfoTypeDef cardinfo;
-//    int ret = 0;
-//    uint32_t data[3]={0x123456AB, 0x12CD4568, 0x1256EF34};
-    //int ch=-1;
-    led_tick = 0;
-  /* USER CODE END 1 */
+	//HAL_SD_CardInfoTypeDef cardinfo;
+	//    int ret = 0;
+	//    uint32_t data[3]={0x123456AB, 0x12CD4568, 0x1256EF34};
+	//int ch=-1;
+	led_tick = 0;
+	/* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+	/* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_Init();
 
-  /* USER CODE BEGIN Init */
+	/* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+	/* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	/* Configure the system clock */
+	SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
-  uartx_queue_init();
-  // 芯片加密校验
+	/* USER CODE BEGIN SysInit */
+	uartx_queue_init();
+	// 芯片加密校验
 #if 0 // 调试时关闭这部分功能
-  if(0x00000000!=(*(const uint32_t*)addr)) first_sign_chip();
-  verify_chip();
+	if(0x00000000!=(*(const uint32_t*)addr)) first_sign_chip();
+	verify_chip();
 #endif
-  /* USER CODE END SysInit */
+	/* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_USB_DEVICE_Init();
-  MX_USART1_UART_Init();
-  MX_USART2_UART_Init();
-  MX_USART3_UART_Init();
-  MX_FATFS_Init();
-  /* USER CODE BEGIN 2 */
-  led_tick = 100;
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_USB_DEVICE_Init();
+	MX_USART1_UART_Init();
+	MX_USART2_UART_Init();
+	MX_USART3_UART_Init();
+	MX_FATFS_Init();
+	/* USER CODE BEGIN 2 */
+	led_tick = 100;
 	USART1_Init(115200);
 	USART2_Init(115200);
 	USART3_Init(115200);
-  //EC20_Test();
-  //EC20_FTP_Test();
-	EC20_FTP_Upload();
-  /* USER CODE END 2 */
+	//EC20_Test();
+	//EC20_FTP_Test();
+	// 未质检设备不连 FTP升级,即生产中的设备不升级
+	if(1==ParamTable_quality())
+	{
+		int port;
+		char param_buf[512];
+		char sn[32];
+		char ftp[32];
+		char user[32];
+		char passwd[32];
+	    struct Ini_Parse Ini = {
+	        "fw.Ini",
+	        .text = param_buf,
+	         ._bsize = sizeof(param_buf),
+	         .pos = 0,
+	         ._dsize = 0,
+	    };
+	    ParamTable_Read(param_buf, 0, sizeof(param_buf));
+	    Ini._dsize = strlen(Ini.text);
+	    // 解析参数
+	    memset(sn, 0, sizeof(sn));
+	    Ini_get_field(&Ini, Param_name, Param_key_sn, "-", sn);
+	    Ini_get_field(&Ini, Param_name, Param_key_ftph, "39.108.51.99", ftp);
+	    Ini_get_field(&Ini, Param_name, Param_key_user, "obd4g", user);
+	    Ini_get_field(&Ini, Param_name, Param_key_passwd, "obd.4g", passwd);
+	    port = Ini_get_int(&Ini, Param_name, Param_key_ftpp, 21);
+		//EC20_FTP_Upload(Emb_Version.hardware, "0A0CK90N4123", "39.108.51.99", 21, "obd4g", "obd.4g");
+	    // 序列号必须有效
+	    if('-'!=sn[0]) EC20_FTP_Upload(Emb_Version.hardware, sn, "39.108.51.99", port, user, passwd);
+	}
+	/* USER CODE END 2 */
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
+	while (1)
+	{
+		/* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
-  }
-  /* USER CODE END 3 */
+		/* USER CODE BEGIN 3 */
+	}
+	/* USER CODE END 3 */
 }
 
 /**

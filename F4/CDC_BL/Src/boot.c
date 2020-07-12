@@ -47,7 +47,14 @@ struct ZKHY_Frame_upload Frame_upload;
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+static const char Param_name[] = "Param";
+static const char Param_key_sn[] = "SN";
+//static const char Param_key_host[] = "Host";
+//static const char Param_key_port[] = "Port";
+static const char Param_key_ftph[] = "FTPH";
+static const char Param_key_ftpp[] = "FTPP";
+static const char Param_key_user[] = "user";
+static const char Param_key_passwd[] = "pass";
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -417,10 +424,39 @@ void bl_entry(void)
 	//app_debug("[%s--%d] bl_len:%d \r\n", __func__, __LINE__, bl_len);
 	if(0!=bl_len)
 	{
+		// 未质检设备不连 FTP升级,即生产中的设备不升级
+		if(1==ParamTable_quality())
+		{
+			int port;
+			char param_buf[512];
+			char sn[32];
+			char ftp[32];
+			char user[32];
+			char passwd[32];
+		    struct Ini_Parse Ini = {
+		        "fw.Ini",
+		        .text = param_buf,
+		         ._bsize = sizeof(param_buf),
+		         .pos = 0,
+		         ._dsize = 0,
+		    };
+		    ParamTable_Read(param_buf, 0, sizeof(param_buf));
+		    Ini._dsize = strlen(Ini.text);
+		    // 解析参数
+		    memset(sn, 0, sizeof(sn));
+		    Ini_get_field(&Ini, Param_name, Param_key_sn, "-", sn);
+		    Ini_get_field(&Ini, Param_name, Param_key_ftph, "39.108.51.99", ftp);
+		    Ini_get_field(&Ini, Param_name, Param_key_user, "obd4g", user);
+		    Ini_get_field(&Ini, Param_name, Param_key_passwd, "obd.4g", passwd);
+		    port = Ini_get_int(&Ini, Param_name, Param_key_ftpp, 21);
+			//EC20_FTP_Upload(Emb_Version.hardware, "0A0CK90N4123", "39.108.51.99", 21, "obd4g", "obd.4g");
+		    // 序列号必须有效
+		    if('-'!=sn[0]) EC20_FTP_Upload(Emb_Version.hardware, sn, ftp, port, user, passwd);
+		}
 		app_debug("[%s--%d] boot_app!\r\n", __func__, __LINE__);
 		boot_app();
 	}
-	fs_test(); // 格式化 Flash
+	//fs_test(); // 格式化 Flash
 	//  ret = FLASH_Erase(0x08020000, 0x08030000);
 	//  app_debug("[%s--%d] FLASH_Erase[%d]\r\n", __func__, __LINE__, ret);
 	//  ret = Flash_Write(0x08010000, data, 3);
@@ -461,7 +497,7 @@ void bl_entry(void)
 			vbus_connect = 0;
 			USBD_DeInit(&hUsbDeviceFS);
 			// 检测升级
-			msc_upload();
+			//msc_upload();
 			boot_app();
 		}
 		memset(send_buf, 0, sizeof(send_buf));

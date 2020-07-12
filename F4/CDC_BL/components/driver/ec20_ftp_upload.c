@@ -165,7 +165,7 @@ int download_firmware(struct ec20_ofps* const _ofps, const char cfg[])
     return -1;
 }
 // FTP升级
-int EC20_FTP_Upload(void)
+int EC20_FTP_Upload(const char hardware[], const char SN[], const char ftp[], const int port, const char user[], const char passwd[])
 {
     int resp=-1;
     int count;
@@ -178,12 +178,21 @@ int EC20_FTP_Upload(void)
     };
     char bin[64];
     char _sn[64];
+    char sn1[32];
+    char sn2[32];
+    // 把序列号拆成前 10位和后 2位
+    memset(sn1, 0, sizeof(sn1));
+    memset(sn2, 0, sizeof(sn2));
+    memcpy(sn1, &SN[0], 10);
+    memcpy(sn2, &SN[10], 2);
+    strcpy(&sn1[10], ".Ini");
     for(count=0; count<1; count++)
     {
     	app_debug("\r\n[%s-%d] EC20_Init ...\r\n", __func__, __LINE__);
     	EC20_Init();
     	app_debug("\r\n[%s-%d] EC20_FTP_Login ...\r\n", __func__, __LINE__);
-        resp=EC20_FTP_Login(&_ec20_ofps, _ec20_ofps.NetInfo.NADR, 21, 1, "obd4g", "obd.4g");
+        //resp=EC20_FTP_Login(&_ec20_ofps, _ec20_ofps.NetInfo.NADR, 21, 1, "obd4g", "obd.4g");
+    	resp=EC20_FTP_Login(&_ec20_ofps, ftp, port, 1, user, passwd);
         if(EC20_RESP_OK!=resp)
         {
             at_print("AT+QFTPCLOSE\r\n");
@@ -195,7 +204,8 @@ int EC20_FTP_Upload(void)
         app_debug("\r\n[%s-%d] DownLoad Ini ...\r\n", __func__, __LINE__);
         memset(ini_data, 0, sizeof(ini_data));
         ini_size=0;
-        resp=FTP_DownLoad_RAM(&_ec20_ofps, "EPS418", "0A0CK90N41.Ini", ini_save_seek);
+        //resp=FTP_DownLoad_RAM(&_ec20_ofps, "EPS418", "0A0CK90N41.Ini", ini_save_seek);
+        resp=FTP_DownLoad_RAM(&_ec20_ofps, hardware, sn1, ini_save_seek);
         if(EC20_RESP_OK!=resp)
         {
             at_print("AT+QFTPCLOSE\r\n");
@@ -205,7 +215,8 @@ int EC20_FTP_Upload(void)
         }
         Ini._dsize = strlen(Ini.text);
         Ini_get_field(&Ini, fw_name, fw_key_bin, "*", bin);
-        Ini_get_field(&Ini, fw_name, "23", "*", _sn);
+        //Ini_get_field(&Ini, fw_name, "23", "*", _sn);
+        Ini_get_field(&Ini, fw_name, sn2, "*", _sn);
         if('*'!=_sn[0])  // 单独配置
         {
         	// 指定固件
@@ -218,7 +229,8 @@ int EC20_FTP_Upload(void)
                 resp=FTP_DownLoad_RAM(&_ec20_ofps, &_sn[1], "fw.Ini", ini_save_seek);
                 Ini._dsize = strlen(Ini.text);
                 Ini_get_field(&Ini, fw_name, fw_key_bin, "*", bin);
-                Ini_get_field(&Ini, fw_name, "0A0CK90N4123", "*", _sn);
+                //Ini_get_field(&Ini, fw_name, "0A0CK90N4123", "*", _sn);
+                Ini_get_field(&Ini, fw_name, SN, "*", _sn);
                 // 单独配置
                 if(('*'!=_sn[0]) && ('-'!=_sn[0])) download_firmware(&_ec20_ofps, _sn);
                 else if('*'!=bin[0]) download_firmware(&_ec20_ofps, bin);
@@ -236,7 +248,8 @@ int EC20_FTP_Upload(void)
                 resp=FTP_DownLoad_RAM(&_ec20_ofps, "/", &_sn[1], ini_save_seek);
                 Ini._dsize = strlen(Ini.text);
                 Ini_get_field(&Ini, fw_name, fw_key_bin, "*", bin);
-                Ini_get_field(&Ini, fw_name, "0A0CK90N4123", "*", _sn);
+                //Ini_get_field(&Ini, fw_name, "0A0CK90N4123", "*", _sn);
+                Ini_get_field(&Ini, fw_name, SN, "*", _sn);
                 // 单独配置
                 if(('*'!=_sn[0]) && ('-'!=_sn[0])) download_firmware(&_ec20_ofps, _sn);
                 else if('*'!=bin[0]) download_firmware(&_ec20_ofps, bin);
