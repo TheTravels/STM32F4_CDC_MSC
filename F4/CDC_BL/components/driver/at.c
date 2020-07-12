@@ -235,6 +235,54 @@ uint8_t at_get_resp_split_int(const char src[], const char resp[], int* const va
     }
     return 0;
 }
+uint32_t ato_hex(const char *const __nptr)
+{
+	const char hex[] = "0123456789ABCDEF";
+	uint32_t value;
+	int i, j;
+	char ch;
+	value = 0;
+	for(i=0; i<8; i++)
+	{
+		ch = __nptr[i];
+		for(j=0; j<16; j++) if(hex[j] == ch) break;
+		if(j>=16) break;
+		value = (value<<4) + j;
+	}
+	return value;
+}
+uint8_t at_get_resp_split_hex(const char src[], const char resp[], uint32_t* const val, const char separator, const uint8_t nFieldNum)
+{
+    const char *Resp = NULL;
+    char dest[128];
+    uint8_t len;
+
+    memset(dest, 0, sizeof(dest));
+    Resp = strstr(src, resp);
+    if(NULL==Resp) return 0;
+    Resp += strlen(resp);
+    len = at_get_str_split(Resp, dest, separator, nFieldNum, sizeof(dest));
+    if(len>0)
+    {
+        *val = ato_hex(dest);
+        return len;
+    }
+    return 0;
+}
+uint8_t at_get_split_hex(const char src[], uint32_t* const val, const char separator, const uint8_t nFieldNum)
+{
+    char dest[128];
+    uint8_t len;
+
+    memset(dest, 0, sizeof(dest));
+    len = at_get_str_split(src, dest, separator, nFieldNum, sizeof(dest));
+    if(len>0)
+    {
+        *val = ato_hex(dest);
+        return len;
+    }
+    return 0;
+}
 /*******************************************************************************
  * 功能:搜索字符串 src 中 resp 后面的参数,以换行结尾
  * resp:字符串

@@ -118,7 +118,7 @@ struct ec20_ofps{
 extern enum ec20_resp EC20_Reset(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_Set(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_CheckRegister(struct ec20_ofps* const _ofps);
-extern enum ec20_resp EC20_Ppp(struct ec20_ofps* const _ofps);
+extern enum ec20_resp EC20_Ppp(struct ec20_ofps* const _ofps, const char apn[], const char username[], const char password[]);
 extern enum ec20_resp EC20_GetInformation(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_Connect(struct ec20_ofps* const _ofps);
 extern enum ec20_resp EC20_Disconnect(struct ec20_ofps* const _ofps);
@@ -143,9 +143,9 @@ extern void EC20_Test(void);
  * EC20 模块 FTP 接口
  *******************************************************************************/
 extern enum ec20_resp EC20_FTP_Login(struct ec20_ofps* const _ofps, const char host[], const int port, const int contextID, const char user[], const char passwd[]);
-extern enum ec20_resp FTP_DownLoad_RAM(struct ec20_ofps* const _ofps, const char dir[], const char filename[], const char path[]);
-int EC20_FTP_Test(void);
-
+extern enum ec20_resp FTP_DownLoad_RAM(struct ec20_ofps* const _ofps, const char dir[], const char filename[], void(*const save_seek)(const int total, const uint32_t _seek, const char data[], const uint16_t block));
+extern int EC20_FTP_Test(void);
+extern int EC20_FTP_Upload(void);
 
 
 struct ec20_ofps _ec20_ofps;

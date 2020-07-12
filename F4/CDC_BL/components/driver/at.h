@@ -70,6 +70,8 @@ extern int at_get_resp_split(const char src[], const char resp[], char dest[], c
  * nFieldNum:第几个段,从1开始
  *******************************************************************************/
 extern uint8_t at_get_resp_split_int(const char src[], const char resp[], int* const val, const char separator, const uint8_t nFieldNum);
+extern uint8_t at_get_resp_split_hex(const char src[], const char resp[], uint32_t* const val, const char separator, const uint8_t nFieldNum);
+extern uint8_t at_get_split_hex(const char src[], uint32_t* const val, const char separator, const uint8_t nFieldNum);
 /*******************************************************************************
  * 功能:搜索字符串 src 中 resp 后面的参数,以换行结尾
  * resp:字符串

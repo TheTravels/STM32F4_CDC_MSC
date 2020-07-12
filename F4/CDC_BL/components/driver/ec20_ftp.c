@@ -415,7 +415,7 @@ enum ec20_resp FTP_DownLoad(struct ec20_ofps* const _ofps, const char dir[], con
     return ret;
 }
 // FTP下载到内存
-enum ec20_resp FTP_DownLoad_RAM(struct ec20_ofps* const _ofps, const char dir[], const char filename[], const char path[])
+enum ec20_resp FTP_DownLoad_RAM(struct ec20_ofps* const _ofps, const char dir[], const char filename[], void(*const save_seek)(const int total, const uint32_t _seek, const char data[], const uint16_t block))
 {
     // 《Quectel_EC2x&EG9x&EM05_FTP(S)_AT_Commands_Manual_V1.0.pdf》
     // 3.1. Login to FTP Server
@@ -426,7 +426,7 @@ enum ec20_resp FTP_DownLoad_RAM(struct ec20_ofps* const _ofps, const char dir[],
     uint8_t time_out = 0;
     int err_code=0;
     int ftp_size;
-    //int startpos=0;
+    int startpos=0;
     const int _downloadlen=1024*3;
     int block=1024;
     const char* data=NULL;
@@ -442,6 +442,11 @@ enum ec20_resp FTP_DownLoad_RAM(struct ec20_ofps* const _ofps, const char dir[],
         case 0:
             // Set current directory.
             // AT+QFTPCWD="/"
+        	// 先切换到根目录
+            at_print("AT+QFTPCWD=\"/\"\r\n");
+            //resp=at_get_resps("\r\n+QFTPCWD: ", "\r\n+CME ERROR: ", NULL, NULL, NULL, 100,1500);
+            resp = at_get_resps("\r\n+QFTPCWD: ", "\r\n+CME ERROR: ", NULL, 1500, 100, &_ofps->_at);
+            // 再切换到工作目录
             at_print("AT+QFTPCWD=\"%s\"\r\n", dir);
             //resp=at_get_resps("\r\n+QFTPCWD: ", "\r\n+CME ERROR: ", NULL, NULL, NULL, 100,1500);
             resp = at_get_resps("\r\n+QFTPCWD: ", "\r\n+CME ERROR: ", NULL, 1500, 100, &_ofps->_at);
@@ -489,7 +494,7 @@ enum ec20_resp FTP_DownLoad_RAM(struct ec20_ofps* const _ofps, const char dir[],
                     at_get_resp_split_int(_ofps->_at._rbuf, "+QFTPSIZE: ", &ftp_size, ',', 2);
                     app_debug("[%s-%d] ftp_size:[%d] \r\n", __func__, __LINE__, ftp_size);
                     // 生成一个空文件
-                    memset(_ofps->_at._rbuf, 0xFF, sizeof (_ofps->_at._rbuf));
+                    //memset(_ofps->_at._rbuf, 0xFF, sizeof (_ofps->_at._rbuf));
                     //create_empty_path(path, ftp_size, _ofps->_at._rbuf, 1024);
                 }
             }
@@ -624,6 +629,7 @@ enum ec20_resp FTP_DownLoad_RAM(struct ec20_ofps* const _ofps, const char dir[],
                 if(0==resp)
                 {
                     //save_to_path_seek(path, 0, startpos, data, block);
+                	save_seek(ftp_size, startpos, data, block);
                     err = 3;
                     startpos += block;
                     //file_ll_save(filename, data, transferlen);
@@ -704,83 +710,17 @@ enum ec20_resp FTP_DownLoad_RAM(struct ec20_ofps* const _ofps, const char dir[],
     return ret;
 }
 
-int EC20_FTP_DownLoad(struct ec20_ofps* const _ofps, const char host[], int port, const char user[], const char passwd[], const char dir[], const char filename[], const char path[])
+static char ini_data[1024*20];
+static int ini_size=0;
+static void ini_save_seek(const int total, const uint32_t _seek, const char* const data, const uint16_t block)
 {
-    int resp=-1;
-    int count;
-    startpos=0;
-    for(count=0; count<3; count++)
-    {
-        switch(_ofps->ModuleState)
-        {
-        case EC20_MODULE_RESET:
-            _ofps->ModuleState = EC20_MODULE_RESET;
-            resp=EC20_Reset(_ofps);
-            if(EC20_RESP_OK!=resp)
-            {
-                _ofps->ModuleState = EC20_MODULE_RESET;
-                break;
-            }
-        case EC20_MODULE_SET:
-            _ofps->ModuleState = EC20_MODULE_SET;
-            resp=EC20_Set(_ofps);
-            if(EC20_RESP_OK!=resp)
-            {
-                _ofps->ModuleState = EC20_MODULE_RESET;
-                break;
-            }
-        case EC20_MODULE_CHK_REG:
-            _ofps->ModuleState = EC20_MODULE_CHK_REG;
-            resp=EC20_CheckRegister(_ofps);
-            if(EC20_RESP_OK!=resp)
-            {
-                _ofps->ModuleState = EC20_MODULE_RESET;
-                break;
-            }
-        case EC20_MODULE_PPP:
-            _ofps->ModuleState = EC20_MODULE_PPP;
-            resp=EC20_Ppp(_ofps);
-            if(EC20_RESP_OK!=resp)
-            {
-                _ofps->ModuleState = EC20_MODULE_RESET;
-                break;
-            }
-        case EC20_MODULE_FTP_LOGIN:
-            _ofps->ModuleState = EC20_MODULE_FTP_LOGIN;
-            resp=EC20_FTP_Login(_ofps, host, port, 1, user, passwd);
-            if(EC20_RESP_OK!=resp)
-            {
-                at_print("AT+QFTPCLOSE\r\n");
-                //at_get_resps("\r\nOK", NULL, NULL, NULL, NULL, 100,1500);
-                resp = at_get_resps("\r\nOK", NULL, NULL, 1500, 100, &_ofps->_at);
-                _ofps->ModuleState = EC20_MODULE_RESET;
-                break;
-            }
-        case EC20_MODULE_FTP_DOWNLOAD:
-            _ofps->ModuleState = EC20_MODULE_FTP_DOWNLOAD;
-            resp=FTP_DownLoad_RAM(_ofps, dir, filename, path);
-            if(EC20_RESP_OK!=resp)
-            {
-                at_print("AT+QFTPCLOSE\r\n");
-                //at_get_resps("\r\nOK", NULL, NULL, NULL, NULL, 100,1500);
-                resp = at_get_resps("\r\nOK", NULL, NULL, 1500, 100, &_ofps->_at);
-                _ofps->ModuleState = EC20_MODULE_RESET;
-                //_ofps->ModuleState = MODULE_FTP_LOGIN;
-                //rt_thread_delay(RT_DELAY(3000));
-                break;
-            }
-        case EC20_MODULE_DISCONNECT:
-            _ofps->ModuleState = EC20_MODULE_DISCONNECT;
-            at_print("AT+QFTPCLOSE\r\n");
-            //at_get_resps("\r\nOK", NULL, NULL, NULL, NULL, 100,1500);
-            resp = at_get_resps("\r\nOK", NULL, NULL, 1500, 100, &_ofps->_at);
-        default:
-            break;
-        }
-    }
-    return 0;
+	uint32_t count;
+	for(count=0; count<block; count++)
+	{
+		if((_seek+count)>sizeof(ini_data)) break;
+		ini_data[_seek+count] = data[count];
+	}
 }
-
 int EC20_FTP_Test(void)
 {
     int resp=-1;
@@ -806,7 +746,28 @@ int EC20_FTP_Test(void)
         app_debug("\r\n[%s-%d] FTP_DownLoad_RAM ...\r\n", __func__, __LINE__);
         //resp=FTP_DownLoad_RAM(&_ec20_ofps, "TEST", "OBD.cpp", "0:/OBD.cpp");
         tick_start = HAL_GetTick();
-        resp=FTP_DownLoad_RAM(&_ec20_ofps, "TEST", "tcp.cpp", "0:/OBD.cpp");
+        memset(ini_data, 0, sizeof(ini_data));
+        ini_size=0;
+        //resp=FTP_DownLoad_RAM(&_ec20_ofps, "EPS418/Debug", "fw.Ini", "0:/OBD.cpp");
+        //resp=FTP_DownLoad_RAM(&_ec20_ofps, "EPS418/Debug", "fw.Ini", ini_save_seek);
+        resp=FTP_DownLoad_RAM(&_ec20_ofps, "/", "EPS418/Debug/fw.Ini", ini_save_seek);
+        //resp=FTP_DownLoad(&_ec20_ofps, "TEST", "OBD.cpp", "0:/OBD.cpp");
+        app_debug("\r\n[%s-%d] ini_data[%d]:<\r\n%s>\r\n", __func__, __LINE__, ini_size, ini_data);
+    	tick_end = HAL_GetTick();
+    	app_debug("[%s-%d] tick_start[%d] tick_start[%d] time[%d] ms\r\n", __func__, __LINE__, tick_start, tick_end, tick_end-tick_start);
+        if(EC20_RESP_OK!=resp)
+        {
+            at_print("AT+QFTPCLOSE\r\n");
+            //at_get_resps("\r\nOK", NULL, NULL, NULL, NULL, 100,1500);
+            resp = at_get_resps("\r\nOK", NULL, NULL, 1500, 100, &_ec20_ofps._at);
+            _ec20_ofps.ModuleState = EC20_MODULE_RESET;
+            //_ofps->ModuleState = MODULE_FTP_LOGIN;
+            //rt_thread_delay(RT_DELAY(3000));
+            break;
+        }
+        memset(ini_data, 0, sizeof(ini_data));
+        ini_size=0;
+        resp=FTP_DownLoad_RAM(&_ec20_ofps, "TEST", "OBD.cpp", ini_save_seek);
         //resp=FTP_DownLoad(&_ec20_ofps, "TEST", "OBD.cpp", "0:/OBD.cpp");
     	tick_end = HAL_GetTick();
     	app_debug("[%s-%d] tick_start[%d] tick_start[%d] time[%d] ms\r\n", __func__, __LINE__, tick_start, tick_end, tick_end-tick_start);

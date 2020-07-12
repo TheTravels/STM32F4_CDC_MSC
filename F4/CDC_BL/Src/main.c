@@ -164,7 +164,8 @@ int main(void)
 	USART2_Init(115200);
 	USART3_Init(115200);
   //EC20_Test();
-  EC20_FTP_Test();
+  //EC20_FTP_Test();
+	EC20_FTP_Upload();
   /* USER CODE END 2 */
 
   /* Infinite loop */

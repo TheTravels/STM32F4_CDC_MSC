@@ -84,10 +84,12 @@ enum ec20_resp EC20_Reset(struct ec20_ofps* const _ofps)
     // 模块重新上电
     LL_GPIO_ResetOutputPin(PWR_EN_4G_GPIO_Port, PWR_EN_4G_Pin);
     HAL_Delay(2500);
+    USART1_Init(115200);
+    HAL_Delay(100);
     LL_GPIO_SetOutputPin(PWR_EN_4G_GPIO_Port, PWR_EN_4G_Pin);
     //
     _ofps->ModuleState = EC20_MODULE_SET;
-    HAL_Delay(10000);  // 10s, 模块需要 10s 左右的时间来启动
+    HAL_Delay(7000);  // 7s, 模块需要 10s 左右的时间来启动
     //resp = GetResponse("\r\nRDY\r\n", ReturnOK, 10000);
     // "\r\nRDY\r\n" 表示设备已正常启动
     app_debug("[%s-%d] read RDY ...\r\n", __func__, __LINE__);
@@ -209,7 +211,12 @@ enum ec20_resp EC20_CheckRegister(struct ec20_ofps* const _ofps)
             	resp = at_get_resps(ReturnOK, ReturnERROR, NULL, 1000, 100, &_ofps->_at);
                 if(0 == resp)
                 {
-                    char *pStr;
+                    //char *pStr;
+                    int stat=-1;
+                    //app_debug("\r\n[%s-%d] _rbuf:<\r\n%s> \r\n", __func__, __LINE__, _ofps->_at._rbuf);
+                    // +CREG: <n>,<stat>[,<sid>,<nid_bid>,<Act>]
+                    at_get_resp_split_int(_ofps->_at._rbuf, "+CREG: ", &stat, ',', 2);
+#if 0
                     pStr = strstr(_ofps->_at._rbuf, "+CREG: ");
                     if(NULL == pStr)
                     {
@@ -225,6 +232,29 @@ enum ec20_resp EC20_CheckRegister(struct ec20_ofps* const _ofps)
                         time_out++;
                         HAL_Delay(1000);
                     }
+#else
+                    if((1==stat) || (5==stat))//已注册
+                    {
+                        state = 1;
+                    }
+                    else
+                    {
+                        time_out++;
+                        HAL_Delay(1000);
+                        if((0<=stat) && (stat<5))
+                        {
+                        	const char* const _stat[] = {
+                        			"0:Not registered. ME is not currently searching a new operator to register to",
+                        			"1:Registered, home network",
+                        			"2:Not registered, but ME is currently searching a new operator to register to" ,
+                        			"3:Registration denied",
+                        			"4:Unknown",
+                        			"5:Registered, roaming"
+                        	};
+                        	app_debug("\r\n[%s-%d] _stat:<%s> \r\n", __func__, __LINE__, _stat[stat]);
+                        }
+                    }
+#endif
                 }
                 else
                 {
@@ -280,7 +310,7 @@ enum ec20_resp EC20_CheckRegister(struct ec20_ofps* const _ofps)
         }
         HAL_Delay(100);
 
-        if(time_out > 200)
+        if(time_out > 20) // 200
             err = 0;
     }
 
@@ -300,7 +330,7 @@ enum ec20_resp EC20_CheckRegister(struct ec20_ofps* const _ofps)
     return ret;
 }
 
-enum ec20_resp EC20_Ppp(struct ec20_ofps* const _ofps)
+enum ec20_resp EC20_Ppp(struct ec20_ofps* const _ofps, const char apn[], const char username[], const char password[])
 {
 	enum ec20_resp ret=EC20_RESP_OK;
     int resp;
@@ -338,10 +368,8 @@ enum ec20_resp EC20_Ppp(struct ec20_ofps* const _ofps)
 //                    }
 //                    break;
             case 1:
-            	at_print("AT+QICSGP=1,1,\"%s\",\"%s\",\"%s\",3\r",
-                		_ofps->NetInfo.APN,
-						_ofps->NetInfo.NUSER,
-						_ofps->NetInfo.NPWD);//设置APN名字
+            	// AT+QICSGP=<contextID>[,<context_type>,<APN>[,<username>,<password>)[,<authentication>]]]
+            	at_print("AT+QICSGP=1,1,\"%s\",\"%s\",\"%s\",3\r", apn, username, password);//设置APN名字
                 //resp = GetResponse(ReturnOK, ReturnERROR, 200);
             	resp = at_get_resps(ReturnOK, ReturnERROR, NULL, 200, 100, &_ofps->_at);
                 if(0 == resp)
@@ -964,7 +992,7 @@ enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps, const void* const _data,
 				int flag=0;
 				at_print("AT+QISEND=%d,0\r",_ofps->SocketID);
 				//resp = GetRes(0,0,2000,100);
-				resp = at_get_resps("+QISEND: ", ReturnERROR, NULL, 2000, 50, &_ofps->_at);
+				resp = at_get_resps("+QISEND: ", ReturnERROR, NULL, 2000, 30, &_ofps->_at);
 				if(-1 != resp)
 				{
 					// +QISEND:
@@ -985,7 +1013,8 @@ enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps, const void* const _data,
 					break;
 				}
 				// +QISEND: (0-11),(0-1460) ,这里取 1024为保留部分缓存
-				uint16_t slen=1024;
+				//uint16_t slen=1024;
+				uint16_t slen=1360;
 				if(alen<slen) slen-=alen;
 				//usb_debug("[%s--%d] CommGprs.Line<%s> \r\n", __func__, __LINE__, CommGprs.Line);
 				//usb_debug("[%s--%d] len0<%d> len<%d> alen<%d> slen<%d>\r\n", __func__, __LINE__, len0, len, alen, slen);
@@ -1008,7 +1037,7 @@ enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps, const void* const _data,
 		case 2:
 			at_print("AT+QISEND=%d,%d\r", _ofps->SocketID, n);
 			//resp = GetResponse(ReturnA,ReturnERROR, 200);
-			resp = at_get_resps(ReturnA, ReturnERROR, NULL, 200, 50, &_ofps->_at);
+			resp = at_get_resps(ReturnA, ReturnERROR, NULL, 200, 30, &_ofps->_at);
 			if(1 == resp)
 			{
 				state = 0xFF;
@@ -1031,7 +1060,7 @@ enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps, const void* const _data,
 			//                resp = GetResponse(num, ReturnERROR, 3000);
 			//char * res[]={"SEND OK",(char*)ReturnSENDFAIL,(char*)ReturnERROR};
 			//resp=GetRes((const char **)res,sizeof(res)/sizeof(char*),3000,500);
-			resp = at_get_resps("SEND OK",(char*)ReturnSENDFAIL,(char*)ReturnERROR, 3000, 50, &_ofps->_at);
+			resp = at_get_resps("SEND OK",(char*)ReturnSENDFAIL,(char*)ReturnERROR, 3000, 30, &_ofps->_at);
 			//app_debug("[%s--%d] uart_send ... end\r\n", __func__, __LINE__);
 			if((0 == resp))
 			{
@@ -1073,7 +1102,7 @@ enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps, const void* const _data,
 			state = 0;
 			break;
 		}
-		HAL_Delay(30);
+		HAL_Delay(15);
 	}
 
 	if(0 == err)
@@ -1091,7 +1120,7 @@ enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps, const void* const _data,
 
 	return ret;
 }
-static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t socket, void* const _data, const uint16_t _len, uint16_t* const _rlen)
+static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t socket, char* const _data, const uint16_t _len, uint16_t* const _rlen)
 {
 	enum ec20_resp ret=EC20_RESP_OK;
     //COMM_GPRS *const module = ((COMM_T*)p)->module;
@@ -1100,17 +1129,20 @@ static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t s
     uint8_t err;
     uint16_t len;
     uint16_t maxlen=_len;//recv->len;
+    uint16_t recv_len = 0;
     const char* data = NULL;
     const char QIRD[] = "+QIRD: ";
     len = 0;
-    //recv->len = 0;
     state = 0;
     err = 5;
+    memset(_data, 0, _len);
     while(err && (state != 0xFF))
     {
         int _length=-1;
         //int rlen=-1;
         uint16_t dlen=maxlen-len;
+        //if(dlen>1024) dlen = 1024;
+        if(dlen>1500) dlen = 1500;
         // AT+QIRD=<connectID>[,<read_length>]
         at_print("AT+QIRD=%d,%d\r", socket,dlen);
         //resp = GetResp(recv);
@@ -1118,14 +1150,17 @@ static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t s
         //
         //OK
         //resp=at_get_resps("+QIRD: ", NULL, NULL, NULL, NULL, 1000,100);
-        resp = at_get_resps("+QIRD: ", NULL, NULL, 1000, 100, &_ofps->_at);
+        resp = at_get_resps("+QIRD: ", NULL, NULL, 1000, 30, &_ofps->_at);
         if(0 == resp)
         {
         	//int i;
             //if(1==at_resp_parse_args(CommGprs.Line, "+QIRD: ", "%d\r\n", &_length))
+        	//app_debug("[%s--%d] _rbuf[%s]\r\n", __func__, __LINE__, _ofps->_at._rbuf);
+        	_length = 0;
         	if(at_get_resp_split_int(_ofps->_at._rbuf, QIRD, &_length, '\r', 1)>0)
             {
         		// 查找数据区偏移
+        		if(_length<=0) break;
         	    data=strstr(_ofps->_at._rbuf, QIRD);
         	    if(NULL==data)
         	    {
@@ -1146,12 +1181,12 @@ static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t s
         	    //app_debug("[%s--%d] i[%d]\r\n", __func__, __LINE__, i);
         	    if(NULL!=_data)
         	    {
-        	    	memset(_data, 0, _len);
         	    	if(_length>=_len) _length = _len;
-        	    	memcpy(_data, data, _length);
-        	    	*_rlen = _length;
+        	    	//memcpy(_data, data, _length);
+        	    	for(int i=0; i<_length; i++) _data[recv_len+i] = data[i];
+        	    	recv_len += _length;
         	    }
-                state = 0xFF;
+                //state = 0xFF;
             }
             else state = 0xFF;
 //            if(recv->len==maxlen){//缓冲区满
@@ -1181,11 +1216,12 @@ static enum ec20_resp __EC20_Read(struct ec20_ofps* const _ofps, const uint8_t s
 //        //recv->len=len;
 //        ret = RT_EOK;
 //    }
+    *_rlen = recv_len;
     return ret;
 }
 enum ec20_resp EC20_Read(struct ec20_ofps* const _ofps, void* const _data, const uint16_t _len, uint16_t* const _rlen)
 {
-	return __EC20_Read(_ofps, _ofps->SocketID, _data, _len, _rlen);
+	return __EC20_Read(_ofps, _ofps->SocketID, (char*)_data, _len, _rlen);
 }
 
 extern enum ec20_resp EC20_PowerOff(struct ec20_ofps* const _ofps);
@@ -1197,9 +1233,11 @@ enum ec20_resp EC20_Init(void)
 	at_ofps_init(&_ec20_ofps._at);
 	strcpy(_ec20_ofps.NetInfo.NADR, "39.108.51.99");
 	_ec20_ofps.NetInfo.PORT = 9919;
-	strcpy(_ec20_ofps.NetInfo.APN, "39.108.51.99");
+	strcpy(_ec20_ofps.NetInfo.APN, "UNIM2M.NJM2MAPN");
+	strcpy(_ec20_ofps.NetInfo.NUSER, "");
+	strcpy(_ec20_ofps.NetInfo.NPWD, "");
 	//app_debug("[%s--%d] EC20 Test Start!\r\n", __func__, __LINE__);
-    //app_debug("[%s-%d] read RDY ...\r\n", __func__, __LINE__);
+    app_debug("[%s-%d] read RDY ...\r\n", __func__, __LINE__);
     resp = at_get_resps("\r\nRDY\r\n", NULL, NULL, 12000, 1000, &_ec20_ofps._at);
 	if(0!=resp) EC20_Reset(&_ec20_ofps);
 	//app_debug("[%s-%d] EC20_Set ...\r\n", __func__, __LINE__);
@@ -1207,25 +1245,28 @@ enum ec20_resp EC20_Init(void)
 	//app_debug("[%s-%d] EC20_CheckRegister ...\r\n", __func__, __LINE__);
 	if(EC20_RESP_OK==ret) ret = EC20_CheckRegister(&_ec20_ofps);
 	app_debug("[%s-%d] EC20_Ppp ...\r\n", __func__, __LINE__);
-	if(EC20_RESP_OK==ret) ret = EC20_Ppp(&_ec20_ofps);
+	if(EC20_RESP_OK==ret) ret = EC20_Ppp(&_ec20_ofps, "UNIM2M.NJM2MAPN", "", "");
 	app_debug("[%s-%d] EC20_GetInformation ...\r\n", __func__, __LINE__);
 	if(EC20_RESP_OK==ret) ret = EC20_GetInformation(&_ec20_ofps);
 	return ret;
 }
 
+char data[1024*20];
 void EC20_Test(void)
 {
 	enum ec20_resp ret;
-	char data[1024+1];
+	//char data[1024];
 	int resp;
 	uint32_t tick_start = HAL_GetTick();
 	uint32_t tick_end;
 	at_ofps_init(&_ec20_ofps._at);
 	strcpy(_ec20_ofps.NetInfo.NADR, "39.108.51.99");
 	_ec20_ofps.NetInfo.PORT = 9919;
-	strcpy(_ec20_ofps.NetInfo.APN, "39.108.51.99");
+	strcpy(_ec20_ofps.NetInfo.APN, "UNIM2M.NJM2MAPN");
+	strcpy(_ec20_ofps.NetInfo.NUSER, "");
+	strcpy(_ec20_ofps.NetInfo.NPWD, "");
 	//app_debug("[%s--%d] EC20 Test Start!\r\n", __func__, __LINE__);
-    //app_debug("[%s-%d] read RDY ...\r\n", __func__, __LINE__);
+    app_debug("[%s-%d] read RDY ...\r\n", __func__, __LINE__);
     resp = at_get_resps("\r\nRDY\r\n", NULL, NULL, 12000, 1000, &_ec20_ofps._at);
 	if(0!=resp) EC20_Reset(&_ec20_ofps);
 	//app_debug("[%s-%d] EC20_Set ...\r\n", __func__, __LINE__);
@@ -1233,7 +1274,7 @@ void EC20_Test(void)
 	//app_debug("[%s-%d] EC20_CheckRegister ...\r\n", __func__, __LINE__);
 	if(EC20_RESP_OK==ret) ret = EC20_CheckRegister(&_ec20_ofps);
 	app_debug("[%s-%d] EC20_Ppp ...\r\n", __func__, __LINE__);
-	if(EC20_RESP_OK==ret) ret = EC20_Ppp(&_ec20_ofps);
+	if(EC20_RESP_OK==ret) ret = EC20_Ppp(&_ec20_ofps, "UNIM2M.NJM2MAPN", "", "");
 	app_debug("[%s-%d] EC20_GetInformation ...\r\n", __func__, __LINE__);
 	if(EC20_RESP_OK==ret) ret = EC20_GetInformation(&_ec20_ofps);
 	app_debug("[%s-%d] EC20_Connect ...\r\n", __func__, __LINE__);
@@ -1244,14 +1285,16 @@ void EC20_Test(void)
 	// 收发测试
 	tick_start = HAL_GetTick();
 	app_debug("[%s-%d] tick_start[%d] ...\r\n", __func__, __LINE__, tick_start);
-	for(int i=0; i<2; i++)
+	for(int i=0; i<30; i++)
 	{
 		uint16_t _rlen=0;
 		memset(data, '0'+(i%10), sizeof(data));
-		if(EC20_RESP_OK==ret) ret = EC20_Send(&_ec20_ofps, data, sizeof(data)-1);
+		//if(EC20_RESP_OK==ret) ret = EC20_Send(&_ec20_ofps, data, sizeof(data)-1);
+		ret = EC20_Send(&_ec20_ofps, data, 1024);
 		memset(data, 0, sizeof(data));
 		if(EC20_RESP_OK==ret) ret = EC20_Read(&_ec20_ofps, data, sizeof(data), &_rlen);
-		app_debug("[%s-%d] _rlen[%d] data:[%s]\r\n", __func__, __LINE__, _rlen, data);
+		//app_debug("[%s-%d] _rlen[%d] data:[%s]\r\n", __func__, __LINE__, _rlen, data);
+		app_debug("[%s-%d] _rlen[%d] \r\n", __func__, __LINE__, _rlen);
 	}
 	tick_end = HAL_GetTick();
 	app_debug("[%s-%d] tick_start[%d] tick_start[%d] time[%d] ms\r\n", __func__, __LINE__, tick_start, tick_end, tick_end-tick_start);

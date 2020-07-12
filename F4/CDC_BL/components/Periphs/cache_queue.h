@@ -15,7 +15,7 @@
 /*
 * 数据接收关键两点，buf要小、接收要快，实测 2017字节 200ms频率收发连续测试 445757字节无数据丢失。
  */
-#define CACHE_QUEUE_LEN    (512+1024+1024+1024)
+#define CACHE_QUEUE_LEN    (512+1024+1024+1024+1024)
 //#define CACHE_QUEUE_LEN    (512)
 typedef struct{
 		uint16_t index_r;
