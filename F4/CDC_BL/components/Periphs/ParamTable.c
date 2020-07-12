@@ -34,7 +34,9 @@ static char __attribute__ ((aligned (4))) param_buf[__ParamTable_Size];
 const uint32_t param_flash_start = 0x08010000;      // App 地址
 const uint32_t param_flash_size = (64+128)*1024;    // App 大小
 const uint32_t param_table_start = 0x0800C000;      // 参数表 地址
-const uint32_t param_table_size = 16*1024;    // 参数表 大小
+const uint32_t param_table_size = 16*1024;          // 参数表 大小
+const uint32_t param_download_start = 0x08040000;   // App 下载区地址
+const uint32_t param_download_size = (128+128)*1024;// App 下载区大小
 
 static const uint32_t quality_flag = 0xFFFF0000;
 

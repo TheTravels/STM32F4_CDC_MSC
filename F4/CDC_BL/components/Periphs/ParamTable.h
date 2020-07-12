@@ -33,8 +33,10 @@ extern uint16_t param_read_flash(uint8_t buf[], const uint32_t seek, const uint1
 extern uint16_t param_write_key(uint32_t _key[]);
 extern uint16_t param_read_key(uint32_t _key[]);
 
-extern const uint32_t param_flash_size;    // App 大小
+extern const uint32_t param_flash_size;       // App 大小
 extern const uint32_t param_flash_start;      // App 地址
+extern const uint32_t param_download_start;   // App 下载区地址
+extern const uint32_t param_download_size;    // App 下载区大小
 
 #ifdef __cplusplus
 }

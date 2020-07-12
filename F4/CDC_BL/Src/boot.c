@@ -130,6 +130,8 @@ void Periphs_DeInit(void)
 {
 	USBD_DeInit(&hUsbDeviceFS);
 	SysTick->CTRL &= (~SysTick_CTRL_ENABLE_Msk);
+    // EC20模块断电
+    LL_GPIO_ResetOutputPin(PWR_EN_4G_GPIO_Port, PWR_EN_4G_Pin);
 	LL_USART_DeInit(USART1);
 	LL_USART_DeInit(USART2);
 	LL_USART_DeInit(USART3);
@@ -227,7 +229,7 @@ void msc_upload(void)
 					  memset(bl_data, 0xFF, sizeof(bl_data));
 					  /*rlen = */file_read_seek(_path, seek, bl_data, _size);
 					  //app_debug("[%s-%d] read seek[0x%08X] rlen[0x%08X] \r\n", __func__, __LINE__, total, seek, rlen);
-					  param_write_flash(bl_data, seek, _size/4);
+					  param_write_flash(bl_data, seek, _size);
 				  }
 			  }
 		  }

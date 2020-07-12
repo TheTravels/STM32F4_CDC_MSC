@@ -17,13 +17,15 @@
 #include "Periphs/uart.h"
 #include "Periphs/ParamTable.h"
 #include "Periphs/crc.h"
+#include "Periphs/Flash.h"
 #include "stm32f4xx_hal.h"
 #include "Ini/Ini.h"
 
 static const char fw_name[] = "Ini"; // "FW";
 static const char fw_key_bin[] = "BIN";
 
-static char ini_data[1024*20];
+// 对齐
+static char __attribute__ ((aligned (4))) ini_data[1024*50];
 static int ini_size=0;
 static void ini_save_seek(const int total, const uint32_t _seek, const char* const data, const uint16_t block)
 {
@@ -32,6 +34,19 @@ static void ini_save_seek(const int total, const uint32_t _seek, const char* con
 	{
 		if((_seek+count)>sizeof(ini_data)) break;
 		ini_data[_seek+count] = data[count];
+	}
+	ini_size = total;
+}
+
+static void flash_save_seek(const int total, const uint32_t _seek, const char* const data, const uint16_t block)
+{
+	if((_seek+block)<param_download_size)
+	{
+		//int ret;
+		memset(ini_data, 0xFF, sizeof(ini_data));
+		memcpy(ini_data, data, block);
+		/*ret = */Flash_Write_Force(param_download_start+_seek, (const uint32_t *)ini_data, block/4);
+		//app_debug("[%s-%d] Flash_Write_Force:<%d> \r\n", __func__, __LINE__, ret);
 	}
 	ini_size = total;
 }
@@ -94,11 +109,57 @@ int download_firmware(struct ec20_ofps* const _ofps, const char cfg[])
     	app_debug("\r\n[%s-%d] crc_ftp[0x%08X] crc_flash[0x%08X] total[0x%04X] \r\n", __func__, __LINE__, crc_ftp, crc_flash, total);
     	if(crc_flash != crc_ftp)
     	{
-        	if(EC20_RESP_OK==FTP_DownLoad_RAM(_ofps, "/", path, ini_save_seek))
-        	{
-        		// 校验,并将新固件写入 flash
-        		return 0;
-        	}
+			app_debug("[%s-%d] download[0x%04X]:0x%08X \r\n", __func__, __LINE__, total, param_download_start);
+			// 计算下载扇区
+			crc_flash = fw_crc(0, (const unsigned char*)(param_download_start), total);
+			app_debug("\r\n[%s-%d] crc_ftp[0x%08X] crc_flash[0x%08X] total[0x%04X] \r\n", __func__, __LINE__, crc_ftp, crc_flash, total);
+			if(crc_flash != crc_ftp)
+			{
+				// 擦除下载扇区
+	    		FLASH_Erase(param_download_start, param_download_start+param_download_size-1);
+	    		FTP_DownLoad_RAM(_ofps, "/", path, flash_save_seek);
+			}
+			// 校验,并将新固件写入 flash
+			app_debug("[%s-%d] download[0x%04X]:0x%08X \r\n", __func__, __LINE__, total, param_download_start);
+			crc_flash = fw_crc(0, (const unsigned char*)(param_download_start), total);
+			app_debug("\r\n[%s-%d] crc_ftp[0x%08X] crc_flash[0x%08X] total[0x%04X] \r\n", __func__, __LINE__, crc_ftp, crc_flash, total);
+			// 拷贝代码
+			if(crc_flash == crc_ftp)
+			{
+				uint32_t seek;
+				uint32_t _size;
+				uint32_t count;
+				const uint32_t* const flash_download = (const uint32_t*)param_download_start;
+				uint32_t* const flash = (uint32_t*)ini_data;
+				// program
+				//param_write_erase();
+				// 擦除App扇区
+	    		FLASH_Erase(param_flash_start, param_flash_start+param_flash_size-1);
+				for(seek=0; seek<total; seek+=512)
+				{
+					_size = total - seek;
+					if(_size>512) _size = 512;
+					memset(ini_data, 0xFF, sizeof(ini_data));
+					//memcpy(ini_data, (const unsigned char*)(param_download_start+seek), _size);
+					//memcpy(ini_data, flash_download+seek, _size);
+					for(count=0; count<(_size>>2); count++)
+					{
+						flash[count] = flash_download[(seek>>2)+count];
+					}
+					//app_debug("[%s-%d] program seek[0x%08X] _size[0x%08X] \r\n", __func__, __LINE__, total, seek, _size);
+					param_write_flash((uint8_t*)ini_data, seek, _size);
+				}
+				crc_flash = fw_crc(0, (const unsigned char*)(param_flash_start), total);
+				app_debug("\r\n[%s-%d] crc_ftp[0x%08X] crc_flash[0x%08X] total[0x%04X] \r\n", __func__, __LINE__, crc_ftp, crc_flash, total);
+				// 下载完成,跳转
+				if(crc_flash == crc_ftp)
+				{
+			        at_print("AT+QFTPCLOSE\r\n");
+			        at_get_resps("\r\nOK", NULL, NULL, 1500, 100, &_ec20_ofps._at);
+			        boot_app();
+				}
+			}
+			return 0;
     	}
     }
     return -1;
