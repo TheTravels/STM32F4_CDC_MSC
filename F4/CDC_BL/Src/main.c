@@ -155,7 +155,7 @@ int main(void)
 	/* USER CODE BEGIN SysInit */
 	uartx_queue_init();
 	// 芯片加密校验
-#if 0 // 调试时关闭这部分功能
+#if 1 // 调试时关闭这部分功能
 	if(0x00000000!=(*(const uint32_t*)addr)) first_sign_chip();
 	verify_chip();
 #endif

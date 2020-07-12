@@ -309,6 +309,11 @@ static void erase_chip(const uint32_t addr, const uint8_t wlen)
 	//app_debug("[%s--%d] bl_entry\r\n", __func__, __LINE__);
 	// jump to app
 	bl_entry();
+	NVIC_SystemReset();
+	while(1)
+	{
+		asm("mov r0,r0");
+	}
 }
 // 签名
 void __attribute__((unused, section(".sign_chip"))) first_sign_chip(void)
@@ -324,7 +329,7 @@ void __attribute__((unused, section(".sign_chip"))) first_sign_chip(void)
 	// 写入签名
 	Flash_Write_Force((const uint32_t)&Emb_Version.signData, sign, 8);
 	// 擦除 first_sign_chip 函数, 80 为 first_sign_chip 函数的大小
-	erase_chip(addr, 80/4);
+	erase_chip(addr, 70/4);
 }
 // 验签代码
 void verify_chip(void)
@@ -449,6 +454,9 @@ void bl_entry(void)
 		    Ini_get_field(&Ini, Param_name, Param_key_user, "obd4g", user);
 		    Ini_get_field(&Ini, Param_name, Param_key_passwd, "obd.4g", passwd);
 		    port = Ini_get_int(&Ini, Param_name, Param_key_ftpp, 21);
+		    app_debug("[%s--%d] SN:%s\r\n", __func__, __LINE__, sn);
+		    //app_debug("[%s--%d] ftp:%s port:%d user:%s passwd:%s \r\n", __func__, __LINE__, ftp, port, user, passwd);
+		    app_debug("[%s--%d] ftp:%s port:%d \r\n", __func__, __LINE__, ftp, port);
 			//EC20_FTP_Upload(Emb_Version.hardware, "0A0CK90N4123", "39.108.51.99", 21, "obd4g", "obd.4g");
 		    // 序列号必须有效
 		    if('-'!=sn[0]) EC20_FTP_Upload(Emb_Version.hardware, sn, ftp, port, user, passwd);
@@ -500,12 +508,6 @@ void bl_entry(void)
 			//msc_upload();
 			boot_app();
 		}
-		memset(send_buf, 0, sizeof(send_buf));
-		/*len = uart3_read(send_buf, sizeof(send_buf));
-	      if(len>0)
-	      {
-	    	  uart3_send(send_buf, len);
-	      }*/
 		//      switch(inter_uart)
 		//      {
 		//      case 1:
