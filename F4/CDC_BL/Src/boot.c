@@ -236,7 +236,7 @@ void msc_upload(void)
 				  for(seek=0; seek<60; seek++)
 				  {
 					  HAL_Delay(50);
-					  LL_GPIO_TogglePin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
+					  LL_GPIO_TogglePin(GPIOD, LED_Pin);
 				  }
 				  led_tick = 100;
 				  param_write_erase();
@@ -257,6 +257,112 @@ void msc_upload(void)
 	  /*卸载文件系统*/
 	  f_mount(0, "0:", 0);
 }
+
+struct from_app_upload_data{
+	uint32_t flag;
+	uint32_t total;
+	uint32_t crc16;
+	uint32_t recv[16];
+};
+// 从 App 升级标志
+#define  FROM_APP_FLAG     0x12345678
+
+#if 0  // 严格的校验会给 调试带来麻烦
+// 来自固件中的更新
+void from_app_upload(void)
+{
+	uint32_t total;
+	uint32_t crc16;
+	uint32_t checksum = 0x12345678;
+	const char* const flash_download = (const char*)param_download_start;
+	// 使用 Ini 格式保存固件信息
+	struct Ini_Parse Ini = {
+			"0:/fw.Ini",
+			.text = (char *)bl_data,
+			._bsize = 1024,//sizeof(bl_data),
+			.pos = 0,
+			._dsize = 0,
+	};
+	memcpy(bl_data, flash_download, 1024);
+	Ini._dsize = strlen(Ini.text);
+	if(Ini._dsize>1024) Ini._dsize = 1024;
+	// 检测升级
+	total = Ini_get_int(&Ini, fw_name, fw_key_total, 0);
+	crc16 = Ini_get_int(&Ini, fw_name, fw_key_crc, 0);
+	checksum = fw_crc(0, (const unsigned char*)(param_flash_start), total);
+	app_debug("[%s-%d] total[0x%08X] crc16[0x%08X] checksum[0x%08X] \r\n", __func__, __LINE__, total, crc16, checksum);
+	if((checksum!=crc16) && (total>4096)) // upload
+	{
+		uint32_t seek;
+		uint32_t _size;
+		led_tick = 0;
+		// 刷入固件前有 3s 快闪提示
+		for(seek=0; seek<60; seek++)
+		{
+			HAL_Delay(50);
+			LL_GPIO_TogglePin(GPIOD, LED_Pin);
+		}
+		led_tick = 100;
+		param_write_erase();
+		// program,从下载扇区拷贝到 app 扇区
+		for(seek=0; seek<total; seek+=1024)
+		{
+			_size = total - seek;
+			if(_size>1024) _size = 1024;
+			memset(bl_data, 0xFF, sizeof(bl_data));
+			// 前 1024 为固件参数区
+			memcpy(bl_data, flash_download+1024+seek, _size);
+			//app_debug("[%s-%d] read seek[0x%08X] rlen[0x%08X] \r\n", __func__, __LINE__, total, seek, rlen);
+			param_write_flash(bl_data, 1024+seek, _size);
+		}
+		// 写入固件信息
+		memcpy(bl_data, flash_download, 1024);
+		param_write_flash(bl_data, 0, 1024);
+	}
+}
+#else
+// 来自固件中的更新
+void from_app_upload(void)
+{
+	uint32_t total;
+	uint32_t crc16;
+	uint32_t checksum = 0x12345678;
+	const char* const flash_download = (const char*)param_download_start;
+	const struct from_app_upload_data* const app_data = (const struct from_app_upload_data*)param_download_start;
+	// 检测升级
+	total = app_data->total;
+	crc16 = app_data->crc16;
+	// 参数检查
+	if((FROM_APP_FLAG!=app_data->flag) || (total>param_flash_size) || (total<4096) || (0==crc16)) return;
+	checksum = fw_crc(0, (const unsigned char*)(param_flash_start), total);
+	app_debug("[%s-%d] total[0x%08X] crc16[0x%08X] checksum[0x%08X] \r\n", __func__, __LINE__, total, crc16, checksum);
+	if((checksum!=crc16) && (total>4096)) // upload
+	{
+		uint32_t seek;
+		uint32_t _size;
+		led_tick = 0;
+		// 刷入固件前有 3s 快闪提示
+		for(seek=0; seek<60; seek++)
+		{
+			HAL_Delay(50);
+			LL_GPIO_TogglePin(GPIOD, LED_Pin);
+		}
+		led_tick = 100;
+		param_write_erase();
+		// program,从下载扇区拷贝到 app 扇区
+		for(seek=0; seek<total; seek+=1024)
+		{
+			_size = total - seek;
+			if(_size>1024) _size = 1024;
+			memset(bl_data, 0xFF, sizeof(bl_data));
+			// 前 1024 为固件参数区, 即 Ini 数据
+			memcpy(bl_data, flash_download+1024+seek, _size);
+			//app_debug("[%s-%d] read seek[0x%08X] rlen[0x%08X] \r\n", __func__, __LINE__, total, seek, rlen);
+			param_write_flash(bl_data, seek, _size);
+		}
+	}
+}
+#endif
 
 // 对芯片签名, 签名长度 32B
 extern uint8_t read_uid(uint8_t uid[]);
@@ -372,12 +478,12 @@ void verify_chip(void)
 		for(led=0; led<60; led++) // 3s
 		{
 			HAL_Delay(50);
-			LL_GPIO_TogglePin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
+			LL_GPIO_TogglePin(GPIOD, LED_Pin);
 		}
 		for(led=0; led<6; led++)  // 3s
 		{
 			HAL_Delay(500);
-			LL_GPIO_TogglePin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
+			LL_GPIO_TogglePin(GPIOD, LED_Pin);
 		}
 	}
 }
@@ -404,7 +510,7 @@ void bl_entry(void)
 	//fs_test_sdio();
 	//MX_USB_DEVICE_Init();
 	//SHA1(NULL, "Hello", 5); // -Os Optimize code, add code 4K
-	LL_GPIO_ResetOutputPin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
+	LL_GPIO_ResetOutputPin(GPIOD, LED_Pin);
 	//fs_test(); // 格式化 Flash
 	memset(send_buf, 0, sizeof(send_buf));
 	// 利用 flash的写 0特点擦除原有数据
@@ -477,6 +583,8 @@ void bl_entry(void)
 		    if('-'!=sn[0]) EC20_FTP_Upload(Emb_Version.hardware, sn, ftp, port, user, passwd);
 		}
 		app_debug("[%s--%d] boot_app!\r\n", __func__, __LINE__);
+		// 检查 app 下载的新固件,有则刷入 app 存储区
+		from_app_upload();
 		boot_app();
 	}
 	//fs_test(); // 格式化 Flash

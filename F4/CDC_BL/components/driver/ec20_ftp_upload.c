@@ -98,7 +98,8 @@ int download_firmware(struct ec20_ofps* const _ofps, const char cfg[])
 	at_get_split_hex(cfg, &total, ',', 1);
 	at_get_split_hex(cfg, &crc_ftp, ',', 2);
     len = at_get_str_split(cfg, path, ',', 3, sizeof(path));
-    if(len>0)
+    // 检查参数: total 必须在 0到 param_flash_size之间,crc_ftp为 0 无效
+    if((len>0) && (total>0) && (total<param_flash_size) && (0!=crc_ftp))
     {
     	// 计算本地 CRC
     	crc_flash=0;
@@ -156,6 +157,7 @@ int download_firmware(struct ec20_ofps* const _ofps, const char cfg[])
 				{
 			        at_print("AT+QFTPCLOSE\r\n");
 			        at_get_resps("\r\nOK", NULL, NULL, 1500, 100, &_ec20_ofps._at);
+
 			        boot_app();
 				}
 			}
