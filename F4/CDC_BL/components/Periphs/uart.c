@@ -144,7 +144,8 @@ int cdc_read(uint8_t buf[], const uint32_t _size)
 	//__asm("CPSIE  I");
 	return index;
 }
-static _ccm char debug_text[1024*2];
+//static _ccm char debug_text[1024*2];
+static char debug_text[1024*2];
 int app_debug(const char *__format, ...)
 {
 	//char debug_text[512];

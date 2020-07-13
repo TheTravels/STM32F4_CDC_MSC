@@ -210,7 +210,7 @@ struct ZKHY_Frame_Emb_write{
     uint32_t seek;         // 数据写入偏移
     uint32_t total;        // 数据写入总大小
     union{
-        uint8_t data[1024];       // 写入的数据,block字节
+        uint8_t data[1024*2];       // 写入的数据,block字节
         struct{
             uint32_t BaudRate;    // 波特率,范围:1000bps-460800bps
             uint8_t DataWidth;    // 数据宽度,取值: 8 8位, 9 9位
@@ -243,8 +243,8 @@ struct ZKHY_Frame_Emb_reada{
     uint32_t seek;         // 数据读取偏移
     uint16_t block;        // 数据实际读取长度
     union{
+    	uint32_t key[8];          // 参数表
         uint8_t data[1024];    // 读取的数据,block字节
-        uint32_t key[8];          // 参数表
         //uint32_t param[128];      // 参数表
     };
 };

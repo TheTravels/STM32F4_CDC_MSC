@@ -43,7 +43,7 @@
 
 const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Version = {
 		.version = "1.1.10-hw2.0-HSH.BL",    // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
-		.model = "0A0",                      // Device Model,eg: "0A0"
+		.model = "45",                       // Device Model,eg: "0A0"
 		.author = "Merafour",                // Developers
 		.hardware = "EPS418",                // Board name
 		.mtext = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},      // boot signature Key

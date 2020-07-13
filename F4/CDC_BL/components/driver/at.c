@@ -18,17 +18,18 @@
 #include "stm32f4xx_hal.h"
 
 // 接收缓存
-static uint8_t _ccm __attribute__ ((aligned (4))) at_data[1024*4];
+static uint8_t __attribute__ ((aligned (4))) at_data[1024*4];
 
 void at_ofps_init(struct at_ofps* const _at)
 {
-	struct at_ofps at = {
+	/*struct at_ofps at = {
 			.uart_send = uart1_send,
 			.uart_read = uart1_read,
 			.uart_size = uart1_size,
 			.uart_is_empty = uart1_isempty,
 	};
-	memcpy(_at, &at, 64);
+	memcpy(_at, &at, 64);*/
+	memset(_at, 0, sizeof(struct at_ofps));
 }
 
 // AT 设备发送命令

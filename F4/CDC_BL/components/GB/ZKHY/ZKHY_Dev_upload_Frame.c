@@ -905,7 +905,8 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     	uint32_t K1[4];   //
     	struct ZKHY_Frame_Emb_sync* const _sync = &_frame->DAT.Emb_sync;
     	// 0x08010000 为  App 地址
-    	const struct Emb_Device_Version* const _Version = (const struct Emb_Device_Version*)0x08010000;
+    	//const struct Emb_Device_Version* const _Version = (const struct Emb_Device_Version*)0x08010000;
+    	const struct Emb_Device_Version* const _Version = (const struct Emb_Device_Version*)param_flash_start;
     	suc = ZKHY_RESP_SUC;
     	memcpy(K1, _sync->KK1, sizeof(_sync->KK1));
     	memcpy(pc_key2, _sync->KK2, sizeof(_sync->KK2));
@@ -958,11 +959,11 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     		}
     		memcpy(_synca->boot_ver, Emb_Version.version, sizeof(Emb_Version.version));
     		memcpy(_synca->app_ver, _Version->version, sizeof(_synca->app_ver));
-    		//memset(_synca->ID, 0x00, sizeof(_synca->ID));
+    		memset(_synca->ID, 0x55, sizeof(_synca->ID));
     		//memcpy(_synca->ID, (char*)0x1FFF7A10, 12);  // 96 bit
     		read_uid(_synca->ID);
     		_synca->crc = _crc16;
-    		_synca->block = 1024;
+    		_synca->block = 1024*2;
     		_synca->volume = param_flash_size;
     	}
     	//app_debug("[%s--%d] ACK:%d\r\n", __func__, __LINE__, enlen);
@@ -1202,7 +1203,7 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     	crc16 = 0;
     	crc16 = fw_crc(crc16, (const unsigned char*)pfnVectors, 8);
     	crc16 = fw_crc(crc16, (const unsigned char*)(param_flash_start+8), Boot.total-8);
-    	//app_debug("[%s--%d] addr[0x%08X | 0x%04X] Boot.crc[0x%08X] crc16[0x%08X] \r\n", __func__, __LINE__, param_flash_start, Boot.total, Boot.crc, crc16);
+    	app_debug("[%s--%d] addr[0x%08X | 0x%04X] Boot.crc[0x%08X] crc16[0x%08X] \r\n", __func__, __LINE__, param_flash_start, Boot.total, Boot.crc, crc16);
     	if(Boot.crc==crc16)
     	{
     		const char info[] = "app start!";

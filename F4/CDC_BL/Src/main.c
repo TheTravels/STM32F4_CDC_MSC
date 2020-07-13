@@ -95,7 +95,7 @@ void bl_entry(void);
 //    return sta;
 //}
 
-static uint8_t _ccm __attribute__ ((aligned (4))) bl_data[1024*4];
+//static uint8_t _ccm __attribute__ ((aligned (4))) bl_data[1024*4];
 //extern void HAL_SD_MspDeInit(SD_HandleTypeDef* sdHandle);
 extern void boot_app(void);
 
@@ -154,6 +154,9 @@ int main(void)
 
 	/* USER CODE BEGIN SysInit */
 	uartx_queue_init();
+	//USART3_Init(115200);
+	//jump_to_app();
+	//boot_app();
 	// 芯片加密校验
 #if 1 // 调试时关闭这部分功能
 	if(0x00000000!=(*(const uint32_t*)addr)) first_sign_chip();

@@ -29,7 +29,7 @@ static const char ReturnRecv[] = "\r\n+QIURC: \"recv\",";
 //static char _ccm __attribute__ ((aligned (4))) ec20_data[1024*4];
 
 #if 1
-struct ec20_ofps _ccm __attribute__ ((aligned (4))) _ec20_ofps;
+struct ec20_ofps __attribute__ ((aligned (4))) _ec20_ofps;
 #else
 struct ec20_ofps _ccm __attribute__ ((aligned (4))) _ec20_ofps = {
 		._at = {
@@ -863,7 +863,8 @@ enum ec20_resp EC20_Idle(struct ec20_ofps* const _ofps)
     int resp;
 
     //if(rt_sem_trytake(module->RxIntSem) == RT_EOK)
-    if(0==_ofps->_at.uart_is_empty())
+    //if(0==_ofps->_at.uart_is_empty())
+    if(0==uart1_isempty())
     {
         while(1)
         {
@@ -1054,7 +1055,8 @@ enum ec20_resp EC20_Send(struct ec20_ofps* const _ofps, const void* const _data,
 			//rt_device_write(module->Dev, 0, data, n);
 			//app_debug("[%s--%d] uart_send ... _data[0x%08X] data0[0x%08X] data[0x%08X] \r\n", __func__, __LINE__, _data, data0, data);
 			//app_debug("[%s--%d] ...data[%d]:<%s>\r\n", __func__, __LINE__, n, data);
-			_ofps->_at.uart_send((const uint8_t*)data, n);
+			//_ofps->_at.uart_send((const uint8_t*)data, n);
+			uart1_send((const uint8_t*)data, n);
 			//uart1_send((const uint8_t*)data, n);
 			//app_debug("[%s--%d] ...\r\n", __func__, __LINE__);
 			//                resp = GetResponse(num, ReturnERROR, 3000);

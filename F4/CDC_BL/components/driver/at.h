@@ -21,11 +21,12 @@ extern "C" {
 // 使用数据结构避免 gcc 将数据拷贝关键操作优化掉
 struct at_ofps{
 	// UART 操作接口函数
-	const int (* const uart_send)(const uint8_t data[], const uint32_t _size);
-	const int (* const uart_read)(uint8_t buf[], const uint32_t _size);
-	const int (* const uart_size)(void);
-	const int (* const uart_is_empty)(void);
-	char __attribute__ ((aligned (4))) _rbuf[1024*4];   // 缓存
+//	const int (* const uart_send)(const uint8_t data[], const uint32_t _size);
+//	const int (* const uart_read)(uint8_t buf[], const uint32_t _size);
+//	const int (* const uart_size)(void);
+//	const int (* const uart_is_empty)(void);
+	uint32_t recv;           // 浪费4字节用于对齐
+	char _rbuf[1024*4];     // 缓存
 	uint16_t _rsize;         // 缓存中数据大小
 };
 

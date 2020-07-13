@@ -119,7 +119,7 @@ void vbus_poll(const uint32_t _tick)
 	if((led_tick>0) && (led_tick<=_tick))
 	{
 		led_tick = _tick + 100;
-		LL_GPIO_TogglePin(GPIOD, LED_Pin|PWR_EN_GPS_Pin);
+		LL_GPIO_TogglePin(GPIOD, LED_Pin);
 	}
 }
 
@@ -130,12 +130,19 @@ void vbus_poll(const uint32_t _tick)
 //    return sta;
 //}
 
-static uint8_t _ccm __attribute__ ((aligned (4))) bl_data[1024*4];
+//static uint8_t _ccm __attribute__ ((aligned (4))) bl_data[1024*4];
+static uint8_t __attribute__ ((aligned (4))) bl_data[1024*4];
 //extern void HAL_SD_MspDeInit(SD_HandleTypeDef* sdHandle);
 extern void boot_app(void);
 void Periphs_DeInit(void)
 {
-	USBD_DeInit(&hUsbDeviceFS);
+	//USBD_DeInit(&hUsbDeviceFS);
+	NVIC_EnableIRQ(OTG_HS_EP1_IN_IRQn);
+	NVIC_EnableIRQ(OTG_HS_EP1_OUT_IRQn);
+	NVIC_EnableIRQ(OTG_HS_WKUP_IRQn);
+	NVIC_EnableIRQ(OTG_HS_IRQn);
+	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_OTGHS);
+	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_OTGHSULPI);
 	SysTick->CTRL &= (~SysTick_CTRL_ENABLE_Msk);
     // EC20模块断电
     LL_GPIO_ResetOutputPin(PWR_EN_4G_GPIO_Port, PWR_EN_4G_Pin);
@@ -148,6 +155,11 @@ void Periphs_DeInit(void)
 	HAL_GPIO_DeInit(VBUS_GPIO_Port, VBUS_Pin);
 	HAL_GPIO_DeInit(PWR_EN_GPS_GPIO_Port, PWR_EN_GPS_Pin);
 	HAL_GPIO_DeInit(PWR_EN_4G_GPIO_Port, PWR_EN_4G_Pin);
+	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_GPIOH);
+	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
+	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
+	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_GPIOD);
 }
 
 int check_bl(uint8_t _buf[], const uint16_t _bsize, int (*const read_func)(uint8_t buf[], const uint32_t _size))
@@ -322,6 +334,9 @@ void __attribute__((unused, section(".sign_chip"))) first_sign_chip(void)
 	uint32_t crc;
 	uint32_t addr = (uint32_t)&first_sign_chip;
 	addr = addr-(addr&0x03);  // 对齐
+	// 延时加密,烧录器会设置校验,若代码执行加密更改了芯片中的数据将导致代码校验失败,
+	// 故此处延时为延缓加密进程,已让烧录器正常校验
+	HAL_Delay(500);
 	// 签名
 	crc = sign_chip(sign);
 	// 写入 CRC

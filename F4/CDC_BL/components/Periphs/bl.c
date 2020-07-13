@@ -44,7 +44,7 @@ void boot_app(void)
 	static pFunction Jump_To_Application;
 	const uint32_t *const _isr_vector = (const uint32_t *)param_flash_start;
 	// sp
-    if((_isr_vector[0] & 0x2FFE0000 ) != 0x20000000) return ;
+    if((_isr_vector[0] & 0x2FFC0000 ) != 0x20000000) return ;
     // Reset_Handler
     if((_isr_vector[1]<param_flash_start) || (_isr_vector[1]>(param_flash_start+param_flash_size))) return ;
     Periphs_DeInit();
@@ -77,7 +77,11 @@ void jump_to_app()
 	if (app_base[0] == 0xffffffff) {
 		return;
 	}
-    if(0x20000000 == (app_base[0] & 0x2FFE0000 ))
+	//app_debug("[%s-%d] param_flash_start:0x%08X \r\n", __func__, __LINE__, param_flash_start);
+	//app_debug("[%s-%d] app_base0[0x%08X | 0x%08X] app_base1[0x%08X]\r\n", __func__, __LINE__, app_base[0], (app_base[0] & 0x2FFE0000 ), app_base[1]);
+	//for(int i=0; i<20; i++) app_debug("[%s-%d] app_base[%d]:0x%08X \r\n", __func__, __LINE__, i, app_base[i]);
+    //if(0x20000000 != (app_base[0] & 0x2FFE0000 ))
+	if(0x20000000 != (app_base[0] & 0x2FFC0000 ))
     {
     	return;
     }
