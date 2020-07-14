@@ -308,6 +308,7 @@ uint16_t param_read_flash(uint8_t buf[], const uint32_t seek, const uint16_t blo
 }
 
 static const int param_key_len = 8;
+extern void Flash_EnableWriteProtection(void);
 uint16_t param_write_key(uint32_t _key[])
 {
 	int i;
@@ -322,6 +323,8 @@ uint16_t param_write_key(uint32_t _key[])
 	memcpy(Key, _key, sizeof(_Version->signApp));
 	// 强制写入,不执行擦除
 	Flash_Write_Force((const uint32_t)&_Version->signApp, Key, sizeof(_Version->signApp)/4);
+	// 写入之后开启 boot 区域写保护
+	Flash_EnableWriteProtection();
 	return sizeof(_Version->signApp);
 }
 uint16_t param_read_key(uint32_t _key[])

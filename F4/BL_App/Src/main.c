@@ -100,6 +100,7 @@ int main(void)
 	int conut=0;
 	//SCB->VTOR = g_pfnVectors;//FLASH_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal FLASH */
 	SCB->VTOR = 0x08010000UL; /* Vector Table Relocation in Internal FLASH */
+	//SCB->VTOR = 0x20000000UL; /* Vector Table Relocation in Internal FLASH */
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/

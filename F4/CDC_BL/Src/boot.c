@@ -413,11 +413,125 @@ static inline uint32_t sign_chip(uint32_t sign[8])
 	app_debug("\r\n");*/
 	return crc;
 }
+/****************************************************************
+* Function:    Flash_EnableReadProtection
+* Description: Enable the read protection of user flash area.
+* Input:        NONE
+* Output:        NONE
+* Return:  NONE
+*****************************************************************/
+
+void Flash_EnableReadProtection(void)
+{
+
+	FLASH_OBProgramInitTypeDef OBInit;
+
+	__HAL_FLASH_PREFETCH_BUFFER_DISABLE();
+
+	HAL_FLASHEx_OBGetConfig(&OBInit);
+	if(OBInit.RDPLevel == OB_RDP_LEVEL_0)
+	{
+		OBInit.OptionType = OPTIONBYTE_RDP;
+		OBInit.RDPLevel = OB_RDP_LEVEL_1;
+		HAL_FLASH_Unlock();
+		HAL_FLASH_OB_Unlock();
+		HAL_FLASHEx_OBProgram(&OBInit);
+		HAL_FLASH_OB_Launch();
+		HAL_FLASH_OB_Lock();
+		HAL_FLASH_Lock();
+	}
+	__HAL_FLASH_PREFETCH_BUFFER_ENABLE();
+
+}
+void Flash_EnableWriteProtection(void)
+{
+
+	FLASH_OBProgramInitTypeDef OBInit;
+
+	__HAL_FLASH_PREFETCH_BUFFER_DISABLE();
+
+	HAL_FLASHEx_OBGetConfig(&OBInit);
+	app_debug("[%s--%d] WRPSector[0x%08X]\r\n", __func__, __LINE__, OBInit.WRPSector);
+	// 锁住 boot 扇区, 0是保护
+	if(0x00 != (OBInit.WRPSector&0x07))
+	{
+		OBInit.OptionType = OPTIONBYTE_WRP;
+		OBInit.WRPState = OB_WRPSTATE_ENABLE;
+		OBInit.WRPSector = 0x07;
+		HAL_FLASH_Unlock();
+		HAL_FLASH_OB_Unlock();
+		HAL_FLASHEx_OBProgram(&OBInit);
+		HAL_FLASH_OB_Launch();
+		HAL_FLASH_OB_Lock();
+		HAL_FLASH_Lock();
+	}
+	app_debug("[%s--%d] WRPSector[0x%08X]\r\n", __func__, __LINE__, OBInit.WRPSector);
+	__HAL_FLASH_PREFETCH_BUFFER_ENABLE();
+
+}
+
+/****************************************************************
+* Function:    Flash_DisableReadProtection
+* Description: Disable the read protection of user flash area.
+* Input:        NONE
+* Output:        NONE
+* Return:  NONE
+*****************************************************************/
+void Flash_DisableReadProtection(void)
+{
+
+  FLASH_OBProgramInitTypeDef OBInit;
+
+  __HAL_FLASH_PREFETCH_BUFFER_DISABLE();
+
+  HAL_FLASHEx_OBGetConfig(&OBInit);
+  if(OBInit.RDPLevel != OB_RDP_LEVEL_0)
+  {
+    OBInit.OptionType = OPTIONBYTE_RDP;
+    OBInit.RDPLevel = OB_RDP_LEVEL_0;
+    HAL_FLASH_Unlock();
+    HAL_FLASH_OB_Unlock();
+    HAL_FLASHEx_OBProgram(&OBInit);
+    HAL_FLASH_OB_Launch();
+    HAL_FLASH_OB_Lock();
+    HAL_FLASH_Lock();
+  }
+  __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
+
+}
+void Flash_DisableWriteProtection(void)
+{
+
+	FLASH_OBProgramInitTypeDef OBInit;
+
+	__HAL_FLASH_PREFETCH_BUFFER_DISABLE();
+
+	HAL_FLASHEx_OBGetConfig(&OBInit);
+	app_debug("[%s--%d] WRPSector[0x%08X]\r\n", __func__, __LINE__, OBInit.WRPSector);
+	// 解锁
+	if(0x7FF != (OBInit.WRPSector&0x7FF))
+	{
+		OBInit.OptionType = OPTIONBYTE_WRP;
+		OBInit.WRPState = OB_WRPSTATE_DISABLE;
+		OBInit.WRPSector = 0x7FF;
+		HAL_FLASH_Unlock();
+		HAL_FLASH_OB_Unlock();
+		HAL_FLASHEx_OBProgram(&OBInit);
+		HAL_FLASH_OB_Launch();
+		HAL_FLASH_OB_Lock();
+		HAL_FLASH_Lock();
+	}
+	app_debug("[%s--%d] WRPSector[0x%08X]\r\n", __func__, __LINE__, OBInit.WRPSector);
+	__HAL_FLASH_PREFETCH_BUFFER_ENABLE();
+
+}
+
 // addr必须是32位对齐的, wlen:32位宽度数据长度
 static void erase_chip(const uint32_t addr, const uint8_t wlen)
 {
 	uint32_t data[32];
 	uint8_t len;
+	//FLASH_OBProgramInitTypeDef pOBInit;
 	// 通过写 0 的方式擦除数据,这是 flash 的特性,数据写入是将 1 编程为 0 的过程
 	len = wlen;
 	if(len>32) len = 32;
@@ -425,6 +539,17 @@ static void erase_chip(const uint32_t addr, const uint8_t wlen)
 	Flash_Write_Force(addr, data, len);
 	HAL_Delay(100);
 	//app_debug("[%s--%d] bl_entry\r\n", __func__, __LINE__);
+#if 0
+	// 设置 BOR 复位级别
+	pOBInit.OptionType = OPTIONBYTE_BOR;
+	pOBInit.BORLevel = OB_BOR_LEVEL1;
+	HAL_FLASHEx_OBProgram(&pOBInit);
+#endif
+#if 0
+	// 设置读保护级别 1,级别 2不可恢复尽量不要设置
+	Flash_EnableReadProtection();
+	Flash_EnableWriteProtection();
+#endif
 	// jump to app
 	bl_entry();
 	NVIC_SystemReset();
@@ -492,6 +617,7 @@ void verify_chip(void)
 void bl_entry(void)
 {
 	int bl_len;
+	//uint32_t signApp[8];
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
 	//MX_USB_DEVICE_Init();
@@ -520,6 +646,12 @@ void bl_entry(void)
 	//HAL_Delay(200);  // delay, check VBUS
 	//app_debug("[%s--%d] system start!\r\n", __func__, __LINE__);
 	app_debug("[%s--%d] Ver[%d | 0x%08X]:%s\r\n", __func__, __LINE__, sizeof(Emb_Version), &Emb_Version, Emb_Version.version);
+	//param_read_key(signApp);
+	//for(int i=0; i<8; i++) app_debug("[%s--%d] signApp[%d]:0x%08X \r\n", __func__, __LINE__, i, signApp[i]);
+#if 1  // 未避免读保护设置失败,在这里每次都检查设置
+	// 设置读保护级别 1,级别 2不可恢复尽量不要设置
+	Flash_EnableReadProtection();
+#endif
 	// 检测是否需要升级
 	for(bl_len=0; bl_len<100; bl_len++)
 	{
