@@ -133,6 +133,7 @@ int main(void)
 	//uint32_t crc;
 	uint32_t addr = (uint32_t)&first_sign_chip;
 	addr = addr-(addr&0x03);  // 对齐
+	//SCB->VTOR = 0x08010000UL ;
 	//HAL_SD_CardInfoTypeDef cardinfo;
 	//    int ret = 0;
 	//    uint32_t data[3]={0x123456AB, 0x12CD4568, 0x1256EF34};
@@ -207,6 +208,7 @@ int main(void)
 	    // 序列号必须有效
 	    if('-'!=sn[0]) EC20_FTP_Upload(Emb_Version.hardware, sn, "39.108.51.99", port, user, passwd);
 	}
+	led_tick = 100;
 	/* USER CODE END 2 */
 
 	/* Infinite loop */

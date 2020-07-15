@@ -134,15 +134,65 @@ void vbus_poll(const uint32_t _tick)
 static uint8_t __attribute__ ((aligned (4))) bl_data[1024*4];
 //extern void HAL_SD_MspDeInit(SD_HandleTypeDef* sdHandle);
 extern void boot_app(void);
+
+void USB_DeInit(void)
+{
+    /* Peripheral clock disable */
+    __HAL_RCC_USB_OTG_FS_CLK_DISABLE();
+
+    /**USB_OTG_FS GPIO Configuration
+    PA11     ------> USB_OTG_FS_DM
+    PA12     ------> USB_OTG_FS_DP
+    */
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11|GPIO_PIN_12);
+
+    /* Peripheral interrupt Deinit*/
+    HAL_NVIC_DisableIRQ(OTG_FS_IRQn);
+}
+
+void clock_deinit(void)
+{
+	/* Enable internal high-speed oscillator. */
+	//rcc_osc_on(RCC_HSI);
+	//rcc_wait_for_osc_ready(RCC_HSI);
+	LL_RCC_HSI_Enable();
+	/* Wait till HSI is ready */
+	while(LL_RCC_HSI_IsReady() != 1)
+	{
+
+	}
+
+	/* Reset the RCC_CFGR register */
+	//RCC_CFGR = 0x000000;
+	RCC->CFGR = 0x000000;
+
+	/* Stop the HSE, CSS, PLL, PLLI2S, PLLSAI */
+	//rcc_osc_off(RCC_HSE);
+	//rcc_osc_off(RCC_PLL);
+	//rcc_css_disable();
+	LL_RCC_HSE_Disable();
+	LL_RCC_PLL_Disable();
+	LL_RCC_ClearFlag_HSECSS();
+
+	/* Reset the RCC_PLLCFGR register */
+	//RCC_PLLCFGR = 0x24003010; // XXX Magic reset number from STM32F4xx reference manual
+	RCC->PLLCFGR = 0x24003010;
+
+	/* Reset the HSEBYP bit */
+	//rcc_osc_bypass_disable(RCC_HSE);
+	LL_RCC_HSE_DisableBypass();
+
+	/* Reset the CIR register */
+	//RCC_CIR = 0x000000;
+	LL_RCC_ClearFlag_LSIRDY();
+}
+
 void Periphs_DeInit(void)
 {
 	//USBD_DeInit(&hUsbDeviceFS);
-	NVIC_EnableIRQ(OTG_HS_EP1_IN_IRQn);
-	NVIC_EnableIRQ(OTG_HS_EP1_OUT_IRQn);
-	NVIC_EnableIRQ(OTG_HS_WKUP_IRQn);
-	NVIC_EnableIRQ(OTG_HS_IRQn);
-	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_OTGHS);
-	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_OTGHSULPI);
+	USB_DeInit();
+//	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_OTGHS);
+//	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_OTGHSULPI);
 	SysTick->CTRL &= (~SysTick_CTRL_ENABLE_Msk);
     // EC20模块断电
     LL_GPIO_ResetOutputPin(PWR_EN_4G_GPIO_Port, PWR_EN_4G_Pin);
@@ -160,6 +210,7 @@ void Periphs_DeInit(void)
 	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
 	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
 	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_GPIOD);
+	clock_deinit();
 }
 
 int check_bl(uint8_t _buf[], const uint16_t _bsize, int (*const read_func)(uint8_t buf[], const uint32_t _size))

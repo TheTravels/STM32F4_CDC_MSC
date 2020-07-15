@@ -85,6 +85,7 @@ void vbus_poll(const uint32_t _tick)
 	{
 		led_tick = _tick + 100;
 		LL_GPIO_TogglePin(GPIOD, LED_GREEN_Pin);
+		//LL_GPIO_TogglePin(GPIOD, LED_RED_Pin);
 	}
 }
 /* USER CODE END 0 */
@@ -99,8 +100,9 @@ int main(void)
 
 	int conut=0;
 	//SCB->VTOR = g_pfnVectors;//FLASH_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal FLASH */
-	SCB->VTOR = 0x08010000UL; /* Vector Table Relocation in Internal FLASH */
+	SCB->VTOR = 0x08010000UL ;
 	//SCB->VTOR = 0x20000000UL; /* Vector Table Relocation in Internal FLASH */
+	led_tick = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -117,11 +119,12 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
 
+  HAL_Delay(500);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  //MX_USB_DEVICE_Init();
+  MX_USB_DEVICE_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_USART3_UART_Init();
@@ -137,9 +140,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
+	  app_debug("[%s--%d] conut:%d\r\n", __func__, __LINE__, conut++);
 	  HAL_Delay(500);
-	  app_debug("[%s--%d] count:%d \r\n", __func__, __LINE__, conut++);
+    /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
