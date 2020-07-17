@@ -99,13 +99,13 @@ int at_get_resps(const char resp[], const char resp_ok[], const char resp_err[],
                 	}
                 	rlen += len;
             	}
-            	//app_debug("[%s-%d] AT<-- [%s] \r\n", __func__, __LINE__, _at->_rbuf);
+            	app_debug("[%s-%d] AT<-- [%s] \r\n", __func__, __LINE__, _at->_rbuf);
             	_at->_rsize = rlen;
                 return index;
             }
     	}
     }
-    //app_debug("[%s-%d] AT<-- [%s] \r\n", __func__, __LINE__, _at->_rbuf);
+    app_debug("[%s-%d] AT[%d] <-- [%s] \r\n", __func__, __LINE__, _at->_rsize, _at->_rbuf);
     _at->_rsize = rlen;
     return -2;
 }

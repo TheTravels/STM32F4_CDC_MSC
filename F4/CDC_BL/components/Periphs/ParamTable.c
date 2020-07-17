@@ -165,7 +165,8 @@ int ParamTable_quality(void)
 	{
 		addr -= __ParamTable_Size;
 	}*/
-	quality = (const uint32_t *)(param_table_start+addr+param_addr_offset);
+	quality = (const uint32_t *)(param_table_start+addr+param_quality_offset);
+	app_debug("[%s--%d] quality:0x%08X \r\n", __func__, __LINE__, *quality);
 	// 质检标志
 	if(quality_flag==(*quality)) return 1;
 	return 0;

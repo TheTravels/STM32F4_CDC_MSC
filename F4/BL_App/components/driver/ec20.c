@@ -1268,6 +1268,13 @@ void EC20_Test(void)
 	//app_debug("[%s--%d] EC20 Test Start!\r\n", __func__, __LINE__);
     app_debug("[%s-%d] read RDY ...\r\n", __func__, __LINE__);
     resp = at_get_resps("\r\nRDY\r\n", NULL, NULL, 12000, 1000, &_ec20_ofps._at);
+    /*at_print("AT+QPRTPARA=3\r\n");
+    at_get_resps("\r\nOK", NULL, NULL, 5000, 100, &_ec20_ofps._at);
+    for(int i=0; i<30; i++)
+    {
+    	app_debug("[%s-%d] watting ...%d\r\n", __func__, __LINE__, i);
+    	HAL_Delay(1000);
+    }*/
 	if(0!=resp) EC20_Reset(&_ec20_ofps);
 	//app_debug("[%s-%d] EC20_Set ...\r\n", __func__, __LINE__);
 	ret = EC20_Set(&_ec20_ofps);

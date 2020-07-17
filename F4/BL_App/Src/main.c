@@ -28,6 +28,11 @@
 /* USER CODE BEGIN Includes */
 #include "Periphs/uart.h"
 #include "version.h"
+#include "driver/ec20.h"
+#include "Periphs/ParamTable.h"
+#include "tea/tea.h"
+#include "Periphs/crc.h"
+#include "Periphs/Flash.h"
 
 /* USER CODE END Includes */
 
@@ -63,7 +68,7 @@ uint8_t vbus_high_count=0;
 uint8_t vbus_low_count=0;
 uint8_t vbus_connect=0;
 uint32_t led_tick = 0;
-extern void bl_entry(void);
+//extern void bl_entry(void);
 extern uint32_t g_pfnVectors;
 
 void vbus_poll(const uint32_t _tick)
@@ -88,6 +93,98 @@ void vbus_poll(const uint32_t _tick)
 		//LL_GPIO_TogglePin(GPIOD, LED_RED_Pin);
 	}
 }
+
+// 对芯片签名, 签名长度 32B
+extern uint8_t read_uid(uint8_t uid[]);
+//static uint8_t send_buf[256];
+uint32_t sign_flag = 0;
+static inline uint32_t sign_chip(uint32_t sign[8])
+{
+	// 对齐
+	uint32_t uid[8];
+	uint16_t count, i;
+	uint32_t crc16 = 0;
+	uint32_t crc;
+	//uint32_t addr = (uint32_t)&bl_entry;
+	uint32_t addr = (uint32_t)0x08003658;
+	const uint32_t* flash = (const uint32_t*)0x08000400;
+	const uint32_t key[4]={0x89480304, 0x60670708, 0x090A0B0C, 0x68270F10};
+	const uint16_t emb_iteration = 64;
+
+	addr = addr-(addr&0x03);  // 对齐
+	flash = (const uint32_t*)(addr+((flash[0]&0x7F)<<2));
+	//memset(uid, 0x5A, sizeof(uid));   // 填默认值
+	memcpy(uid, flash, sizeof(uid));  // 将代码作为随机数使用
+	// 读取 ID
+	read_uid((uint8_t*)uid);  // 96 bit
+	// 使用 TEA 加密, 迭代处理,将对称加密变成不可解密加密算法
+	for(count=0; count< 16; count++)
+	{
+		memcpy(&sign[0], key, sizeof(key));
+		memcpy(&sign[4], key, sizeof(key));
+		tea_encrypt(sign, 4*8, uid, emb_iteration);
+		// 叠加,将 sign 和 key 带入 uid,从而让数据不可解密
+		for(i=0; i<8; i++) uid[i] = uid[i] + ((uid[i]>>i)&0xFFFF) + ((sign[i]<<i)&0xFFFF0000);
+		tea_encrypt(uid, sizeof(uid), key, emb_iteration);
+		sign_flag++;
+	}
+	// 计算 CRC
+	crc16 = 0;
+#ifdef FAST_CRC16
+	crc16 = fast_crc16(crc16, (const unsigned char*)(0x08000000+0x0400), 1024*32); // 32K 代码校验
+#else
+	crc16 = fw_crc(crc16, (const unsigned char*)(0x08000000+0x0400), 1024*32); // 32K 代码校验
+#endif
+	crc = crc16;
+	memcpy(&sign[0], uid, sizeof(uid));
+	MX_USART3_UART_Init();
+	/*app_debug("[%s--%d] crc:0x%08X sign_flag:%d \r\n", __func__, __LINE__, crc, sign_flag);
+	app_debug("[%s--%d] sign: \r\n", __func__, __LINE__);
+	for(i=0; i<8; i++) app_debug("0x%08X \r\n", sign[i]);
+	app_debug("\r\n");*/
+	return crc;
+}
+// 验签代码
+void verify_chip(void)
+{
+	uint32_t sign[8];
+	uint32_t crc;
+	int led;
+	const struct Emb_Device_Version*const _Emb_version = (const struct Emb_Device_Version*)0x08000200;
+	// 签名
+	crc = sign_chip(sign);
+	//app_debug("[%s--%d] uid: \r\n", __func__, __LINE__);
+	app_debug("[%s--%d] sign_flag:%d \r\n", __func__, __LINE__, sign_flag);
+	app_debug("[%s--%d] crc:0x%08X 0x%08X \r\n", __func__, __LINE__, _Emb_version->crc, crc);
+	for(int i=0; i<8; i++) app_debug("[%s--%d] signData[%d]:0x%08X 0x%08X \r\n", __func__, __LINE__, i, _Emb_version->signData[i], sign[i]);
+	if((16==sign_flag) && (_Emb_version->crc==crc) && (0==memcmp(sign, _Emb_version->signData, sizeof(_Emb_version->signData))))
+	{
+		app_debug("[%s--%d] verify_chip pass! \r\n", __func__, __LINE__);
+		//bl_entry();
+		return ;
+	}
+	//app_debug("[%s--%d] uid: \r\n", __func__, __LINE__);
+	// 加密验证错误, 错误提示:3s快闪,3s慢闪
+	led_tick = 0;
+	MX_GPIO_Init();
+	while(1)  // nop
+	{
+		// 使用";"会出现 warning: this 'for' clause does not guard... [-Wmisleading-indentation]
+		//asm("mov r0,r0");
+		// 刷入固件前有 3s 快闪提示
+		for(led=0; led<60; led++) // 3s
+		{
+			HAL_Delay(50);
+			LL_GPIO_TogglePin(GPIOD, LED_GREEN_Pin);
+		}
+		for(led=0; led<6; led++)  // 3s
+		{
+			HAL_Delay(500);
+			LL_GPIO_TogglePin(GPIOD, LED_GREEN_Pin);
+		}
+	}
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -98,7 +195,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 
-	int conut=0;
+	//int conut=0;
 	//SCB->VTOR = g_pfnVectors;//FLASH_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal FLASH */
 	SCB->VTOR = 0x08010000UL ;
 	//SCB->VTOR = 0x20000000UL; /* Vector Table Relocation in Internal FLASH */
@@ -134,13 +231,22 @@ int main(void)
 	USART3_Init(115200);
 	led_tick = HAL_GetTick() + 200;
 	app_debug("[%s--%d] Ver[%d | 0x%08X]:%s\r\n", __func__, __LINE__, sizeof(Emb_Version), &Emb_Version, Emb_Version.version);
+#if 0
+	app_debug("[%s--%d] HAL_OK       = 0x00U, \r\n", __func__, __LINE__);
+	app_debug("[%s--%d] HAL_ERROR    = 0x01U, \r\n", __func__, __LINE__);
+	app_debug("[%s--%d] HAL_BUSY     = 0x02U, \r\n", __func__, __LINE__);
+	app_debug("[%s--%d] HAL_TIMEOUT  = 0x03U, \r\n", __func__, __LINE__);
+	app_debug("[%s--%d] FLASH_Erase[0x%08X-0x%08X]:%d\r\n", __func__, __LINE__, 0x08000000, 0x08000FFF, FLASH_Erase(0x08000000, 0x08000FFF));
+#endif
+	//verify_chip();
+	//EC20_Test();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  app_debug("[%s--%d] conut:%d\r\n", __func__, __LINE__, conut++);
+	  //app_debug("[%s--%d] conut:%d\r\n", __func__, __LINE__, conut++);
 	  HAL_Delay(500);
     /* USER CODE END WHILE */
 

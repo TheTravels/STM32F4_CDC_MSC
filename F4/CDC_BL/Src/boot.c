@@ -734,6 +734,7 @@ void bl_entry(void)
 	if(0!=bl_len)
 	{
 		// 未质检设备不连 FTP升级,即生产中的设备不升级
+		//app_debug("[%s--%d] quality:%d \r\n", __func__, __LINE__, ParamTable_quality());
 		if(1==ParamTable_quality())
 		{
 			int port;

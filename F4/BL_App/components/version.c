@@ -42,10 +42,11 @@
 //static uint32_t swd=1;
 
 const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Version = {
-		.version = "1.1.10-hw2.0-HSH.LED_RED",    // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
-		.model = "45",                       // Device Model,eg: "0A0"
+		//.version = "1.1.10-hw1.0-HSH.LED_RED",    // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
+		.version = "1.1.11-hw1.0-HSH.RED_Pin",    // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
+		.model = "52",                       // Device Model,eg: "0A0"
 		.author = "Merafour",                // Developers
-		.hardware = "EPS418",                // Board name
+		.hardware = "A108",                  // Board name
 		.mtext = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},      // boot signature Key
 		.signData = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},   // boot signature
 		.signApp = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},    // firmware signature
@@ -62,6 +63,7 @@ const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Ve
 				.led = 1,
 				.debug = EMB_DEBUG_UART3,    // Debug out UART3
 				//.debug = EMB_DEBUG_NONE,     // 无调试信息
+				//.debug = EMB_DEBUG_CDC,    // Debug out CDC
 		},
 		.reserve1 = 0x55,
 		.reserve2 = 0x55,

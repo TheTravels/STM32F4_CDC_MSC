@@ -185,8 +185,13 @@ int EC20_FTP_Upload(const char hardware[], const char SN[], const char ftp[], co
     // 把序列号拆成前 10位和后 2位
     memset(sn1, 0, sizeof(sn1));
     memset(sn2, 0, sizeof(sn2));
+#if 0
     memcpy(sn1, &SN[0], 10);
     memcpy(sn2, &SN[10], 2);
+#else
+    memcpy(sn1, &SN[0], 9);
+    memcpy(sn2, &SN[9], 3);
+#endif
     strcpy(&sn1[10], ".Ini");
     for(count=0; count<1; count++)
     {
@@ -210,6 +215,15 @@ int EC20_FTP_Upload(const char hardware[], const char SN[], const char ftp[], co
         resp=FTP_DownLoad_RAM(&_ec20_ofps, hardware, sn1, ini_save_seek);
         if(EC20_RESP_OK!=resp)
         {
+            memset(ini_data, 0, sizeof(ini_data));
+            ini_size=0;
+        	resp=FTP_DownLoad_RAM(&_ec20_ofps, hardware, "fw.Ini", ini_save_seek);
+        	if(EC20_RESP_OK==resp)
+        	{
+                Ini._dsize = strlen(Ini.text);
+                Ini_get_field(&Ini, fw_name, fw_key_bin, "*", bin);
+                download_firmware(&_ec20_ofps, bin);
+        	}
             at_print("AT+QFTPCLOSE\r\n");
             resp = at_get_resps("\r\nOK", NULL, NULL, 1500, 100, &_ec20_ofps._at);
             _ec20_ofps.ModuleState = EC20_MODULE_RESET;
