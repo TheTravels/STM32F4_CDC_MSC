@@ -98,7 +98,8 @@ static uint16_t ParamTable_search_empty(void)
 	uint16_t _search;
 	//uint32_t param[__ParamTable_Size/4];
 	const uint32_t* param = NULL;
-	for(addr=0; addr<param_table_size; addr+=__ParamTable_Size)
+	// 空出 Table0,老版本设备参数保存在这里,用于兼容
+	for(addr=__ParamTable_Size; addr<param_table_size; addr+=__ParamTable_Size)
 	{
 		int i;
 		param = (const uint32_t*)(param_table_start+addr);
@@ -124,7 +125,8 @@ static uint16_t ParamTable_search_boot(void)
 	uint16_t addr_last; // 表内地址
 	const uint32_t* param = NULL;
 	addr_last=0;
-	for(addr=0; addr<param_table_size; addr+=__ParamTable_Size)
+	// 空出 Table0,老版本设备参数保存在这里,用于兼容
+	for(addr=__ParamTable_Size; addr<param_table_size; addr+=__ParamTable_Size)
 	{
 		param = (const uint32_t*)(param_table_start+addr);
 		// 记录最后一次检索到参数表的地址
@@ -142,7 +144,8 @@ static uint16_t ParamTable_search_app(void)
 	uint16_t addr_last; // 表内地址
 	const uint32_t* param = NULL;
 	addr_last=0;
-	for(addr=0; addr<param_table_size; addr+=__ParamTable_Size)
+	// 空出 Table0,老版本设备参数保存在这里,用于兼容
+	for(addr=__ParamTable_Size; addr<param_table_size; addr+=__ParamTable_Size)
 	{
 		param = (const uint32_t*)(param_table_start+addr);
 		// 记录最后一次检索到参数表的地址
