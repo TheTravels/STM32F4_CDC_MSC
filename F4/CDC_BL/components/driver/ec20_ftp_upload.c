@@ -279,6 +279,7 @@ int EC20_FTP_Upload(const char hardware[], const char SN[], const char ftp[], co
         // "$hardware/Ver.Ini"
         if(EC20_RESP_OK!=resp)   // "A108/Ver.Ini"
         {
+sn_ini:
             memset(ini_data, 0, sizeof(ini_data));
             ini_size=0;
         	resp=FTP_DownLoad_RAM(&_ec20_ofps, hardware, "Ver.Ini", ini_save_seek);
@@ -322,9 +323,11 @@ int EC20_FTP_Upload(const char hardware[], const char SN[], const char ftp[], co
             }
             else // VER=v3.0.0
             {
-            	memset(ver, 0, sizeof(ver));
-            	Ini_get_field(&Ini, fw_name, fw_key_ver, "-", ver);
-            	if('-'!=ver[0]) download_firmware(&_ec20_ofps, hardware, ver);
+            	// 号段文件不识别键值对 VER
+            	goto sn_ini;
+            	//memset(ver, 0, sizeof(ver));
+            	//Ini_get_field(&Ini, fw_name, fw_key_ver, "-", ver);
+            	//if('-'!=ver[0]) download_firmware(&_ec20_ofps, hardware, ver);
             }
             at_print("AT+QFTPCLOSE\r\n");
             //at_get_resps("\r\nOK", NULL, NULL, NULL, NULL, 100,1500);

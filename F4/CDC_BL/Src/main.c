@@ -159,7 +159,7 @@ int main(void)
 	//jump_to_app();
 	//boot_app();
 	// 芯片加密校验
-#if 0 // 调试时关闭这部分功能
+#if 1 // 调试时关闭这部分功能
 	if(0x00000000!=(*(const uint32_t*)addr)) first_sign_chip();
 	verify_chip();
 #endif
@@ -181,8 +181,7 @@ int main(void)
 	//EC20_FTP_Test();
 	// 未质检设备不连 FTP升级,即生产中的设备不升级
 	// 擦除App扇区
-	FLASH_Erase(param_flash_start, param_flash_start+param_flash_size-1);
-	EC20_FTP_Upload("A108", "0A0CK90N4123", "39.108.51.99", 21, "obd4g", "obd.4g");
+	//EC20_FTP_Upload("A108", "0A0CK90N4123", "39.108.51.99", 21, "obd4g", "obd.4g");
 	if(1==ParamTable_quality())
 	{
 		int port;

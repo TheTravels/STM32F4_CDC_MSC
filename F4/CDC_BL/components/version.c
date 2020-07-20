@@ -42,7 +42,7 @@
 //static uint32_t swd=1;
 
 const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Version = {
-		.version = "1.1.14-hw1.0-HSH.BL",    // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
+		.version = "1.1.15-hw1.0-HSH.BL",    // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
 		.model = "52",                       // Device Model,eg: "0A0"
 		.author = "Merafour",                // Developers
 		.hardware = "A108",                  // Board name
