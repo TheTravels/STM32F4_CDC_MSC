@@ -126,7 +126,16 @@ static uint16_t ParamTable_search_boot(void)
 	const uint32_t* param = NULL;
 	addr_last=0;
 	// 空出 Table0,老版本设备参数保存在这里,用于兼容
-	for(addr=__ParamTable_Size; addr<param_table_size; addr+=__ParamTable_Size)
+	for(addr=0; addr<param_table_size; addr+=__ParamTable_Size)
+	{
+		param = (const uint32_t*)(param_table_start+addr);
+		//app_debug("[%s--%d] addr:0x%04X param[0]:0x%08X \r\n", __func__, __LINE__, addr, param[0]);
+		// 记录最后一次检索到参数表的地址
+		if(param_boot_flag==param[0]) addr_last = addr;
+		// 无参数表
+		//if(0xFFFFFFFF==param[0]) break;
+	}
+	for(; addr<param_table_size; addr+=__ParamTable_Size)
 	{
 		param = (const uint32_t*)(param_table_start+addr);
 		// 记录最后一次检索到参数表的地址
@@ -134,7 +143,7 @@ static uint16_t ParamTable_search_boot(void)
 		// 无参数表
 		if(0xFFFFFFFF==param[0]) break;
 	}
-	//app_debug("[%s--%d] addr:0x%04X \r\n", __func__, __LINE__, addr);
+	//app_debug("[%s--%d] addr:0x%04X addr_last:0x%04X \r\n", __func__, __LINE__, addr, addr_last);
 	return addr_last; // 找不到空白区域
 }
 // 搜索最新的 App参数表位置
@@ -145,7 +154,15 @@ static uint16_t ParamTable_search_app(void)
 	const uint32_t* param = NULL;
 	addr_last=0;
 	// 空出 Table0,老版本设备参数保存在这里,用于兼容
-	for(addr=__ParamTable_Size; addr<param_table_size; addr+=__ParamTable_Size)
+	for(addr=0; addr<param_table_size; addr+=__ParamTable_Size)
+	{
+		param = (const uint32_t*)(param_table_start+addr);
+		// 记录最后一次检索到参数表的地址
+		if(param_app_flag==param[0]) addr_last = addr;
+		// 无参数表
+		//if(0xFFFFFFFF==param[0]) break;
+	}
+	for(; addr<param_table_size; addr+=__ParamTable_Size)
 	{
 		param = (const uint32_t*)(param_table_start+addr);
 		// 记录最后一次检索到参数表的地址
@@ -184,6 +201,7 @@ int ParamTable_Write(const void *const Param, const uint32_t _size)
 {
 	uint32_t size = _size;
 	uint16_t addr; // 表内地址
+	uint32_t* param = NULL;
 	// 查找空白区域
 	addr = ParamTable_search_empty();
 	//app_debug("[%s--%d] addr:0x%04X \r\n", __func__, __LINE__, addr);
@@ -199,10 +217,15 @@ int ParamTable_Write(const void *const Param, const uint32_t _size)
 	// TEA 加密数据
 	tea_encrypt(param_buf+param_addr_offset, ParamTable_Size(), param_key, param_iteration);
 	// 参数表标志
-	param_buf[0] = param_boot_flag;
+	//param_buf[0] = param_boot_flag;
+	param = (uint32_t*)param_buf;
+	param[0] = param_boot_flag;
 	// 写入 flash
+	//app_debug("[%s--%d] Flash_Write_Force:0x%08X param_buf:0x%08X param[0]:0x%08X \r\n", __func__, __LINE__, param_table_start+addr, param_buf, param[0]);
 	app_debug("[%s--%d] Flash_Write_Force:0x%08X param_buf:0x%08X \r\n", __func__, __LINE__, param_table_start+addr, param_buf);
-	Flash_Write_Force(param_table_start+addr, (const uint32_t *)param_buf, __ParamTable_Size/4);
+	//Flash_Write_Force(param_table_start+addr, (const uint32_t *)param_buf, __ParamTable_Size/4);
+	Flash_Write_Force(param_table_start+addr, (const uint32_t *)param, __ParamTable_Size/4);
+	//ParamTable_search_boot();
 	return size;
 }
 // quality:质检标志
@@ -213,6 +236,7 @@ int ParamTable_Read(void *const Param, const int _quality, const uint32_t _size)
 	//uint32_t * const quality = (uint32_t *)param_buf;
 	// 查找最后一个参数表位置
 	addr = ParamTable_search_boot();
+	//app_debug("[%s--%d] addr:0x%04X \r\n", __func__, __LINE__, addr);
 	/*if(addr>=__ParamTable_Size) // 空闲空间的前一个空间才有数据
 	{
 		addr -= __ParamTable_Size;
