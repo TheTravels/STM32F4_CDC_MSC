@@ -60,8 +60,9 @@ const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Ve
 				.swd = 1,
 				.vbus = 0,
 				.led = 1,
-				//.debug = EMB_DEBUG_UART3,    // Debug out UART3
-				.debug = EMB_DEBUG_NONE,     // 无调试信息
+				.debug = EMB_DEBUG_UART3,    // Debug out UART3
+				//.debug = EMB_DEBUG_NONE,     // 无调试信息
+				.sn = 0,                     // 0:2 place ; 1:3 place
 		},
 		.reserve1 = 0x55,
 		.reserve2 = 0x55,

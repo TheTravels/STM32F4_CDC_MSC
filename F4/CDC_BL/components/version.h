@@ -97,7 +97,8 @@ struct Emb_Device_Version {
 			const uint8_t vbus: 1;    // Logic level, vbus, 0:low, 1:high
 			const uint8_t led: 1;     // Logic level, led, 0:low on, 1:high on
 			const uint8_t debug: 3;   // Debug Info out, 0: off, 1:UART1, 2:UART2, 3:UART3, 4:UART4, 5:UART5, 6:UART6, 7:CDC
-			const uint8_t reserve: 2; // reserve
+			const uint8_t sn: 1;      // Serial number length,0:2 place ; 1:3 place
+			const uint8_t reserve: 1; // reserve
 		};
 	}cfg;
 	const uint8_t reserve1;       // reserve
