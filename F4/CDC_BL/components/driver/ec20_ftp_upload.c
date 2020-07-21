@@ -320,15 +320,12 @@ sn_ini:
         	 * */
             Ini._dsize = strlen(Ini.text);
             //Ini_get_field(&Ini, fw_name, "23", "*", _sn);
-            Ini_get_field(&Ini, fw_name, sn2, "-", ver);
-            if('-'!=ver[0])  // 23=v2.1.0
+            Ini_get_field(&Ini, fw_name, sn2, "\n", ver);
+            if('\n'==ver[0]) goto sn_ini;
+            else if( (('a'<=ver[0]) && ('z'>=ver[0])) || (('A'<=ver[0]) && ('Z'>=ver[0])) )  // 23=v2.1.0
             {
             	download_firmware(&_ec20_ofps, hardware, ver);
-            }
-            else // VER=v3.0.0
-            {
             	// 号段文件不识别键值对 VER
-            	goto sn_ini;
             	//memset(ver, 0, sizeof(ver));
             	//Ini_get_field(&Ini, fw_name, fw_key_ver, "-", ver);
             	//if('-'!=ver[0]) download_firmware(&_ec20_ofps, hardware, ver);

@@ -352,7 +352,7 @@ uint16_t param_write_key(uint32_t _key[])
 	// 强制写入,不执行擦除
 	Flash_Write_Force((const uint32_t)&_Version->signApp, Key, sizeof(_Version->signApp)/4);
 	// 写入之后开启 boot 区域写保护
-	Flash_EnableWriteProtection();
+	if(1!=Emb_Version.cfg.swd) Flash_EnableWriteProtection();
 	return sizeof(_Version->signApp);
 }
 uint16_t param_read_key(uint32_t _key[])

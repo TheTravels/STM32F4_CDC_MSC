@@ -699,10 +699,11 @@ void bl_entry(void)
 	app_debug("[%s--%d] Ver[%d | 0x%08X]:%s\r\n", __func__, __LINE__, sizeof(Emb_Version), &Emb_Version, Emb_Version.version);
 	//param_read_key(signApp);
 	//for(int i=0; i<8; i++) app_debug("[%s--%d] signApp[%d]:0x%08X \r\n", __func__, __LINE__, i, signApp[i]);
-#if 1  // 未避免读保护设置失败,在这里每次都检查设置
+#if 0  // 未避免读保护设置失败,在这里每次都检查设置
 	// 设置读保护级别 1,级别 2不可恢复尽量不要设置
 	Flash_EnableReadProtection();
 #endif
+	if(1!=Emb_Version.cfg.swd) Flash_EnableReadProtection();
 	// 检测是否需要升级
 	for(bl_len=0; bl_len<100; bl_len++)
 	{

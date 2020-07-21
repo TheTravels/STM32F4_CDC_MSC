@@ -9,6 +9,6 @@ else
 echo "commit is " $1
 git add .
 git commit -m "$1"
-git push origin develop
+git push origin debug
 fi
 
