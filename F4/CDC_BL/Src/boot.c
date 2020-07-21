@@ -116,6 +116,14 @@ void vbus_poll(const uint32_t _tick)
 		vbus_low_count++;
 		if(vbus_low_count>200) vbus_low_count = 200;
 	}
+	if((0==vbus_connect) && (vbus_high_count>100)) // usb connect
+	{
+		vbus_connect = 1;
+	}
+	if((1==vbus_connect) && (vbus_low_count>100)) // usb disconnect
+	{
+		vbus_connect = 0;
+	}
 	if((led_tick>0) && (led_tick<=_tick))
 	{
 		led_tick = _tick + 100;
@@ -671,7 +679,7 @@ void bl_entry(void)
 	//uint32_t signApp[8];
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
-	//MX_USB_DEVICE_Init();
+	MX_USB_DEVICE_Init();
 	//MX_SDIO_SD_Init();
 	//MX_USART1_UART_Init();
 	//MX_USART2_UART_Init();
@@ -708,7 +716,8 @@ void bl_entry(void)
 	for(bl_len=0; bl_len<100; bl_len++)
 	{
 		HAL_Delay(10);
-		if((0==vbus_connect) && (vbus_high_count>100)) // usb connect
+		//if((0==vbus_connect) && (vbus_high_count>100)) // usb connect
+		if(1==vbus_connect)
 		{
 			bl_len=0;
 			break;
@@ -803,7 +812,7 @@ void bl_entry(void)
 	/* USER CODE BEGIN WHILE */
 	while (1)
 	{
-		if((0==vbus_connect) && (vbus_high_count>100)) // usb connect
+		/*if((0==vbus_connect) && (vbus_high_count>100)) // usb connect
 		{
 			vbus_connect = 1;
 			MX_USB_DEVICE_Init();
@@ -811,6 +820,13 @@ void bl_entry(void)
 		if((1==vbus_connect) && (vbus_low_count>100)) // usb disconnect
 		{
 			vbus_connect = 0;
+			USBD_DeInit(&hUsbDeviceFS);
+			// 检测升级
+			//msc_upload();
+			boot_app();
+		}*/
+		if(0==vbus_connect) // usb disconnect
+		{
 			USBD_DeInit(&hUsbDeviceFS);
 			// 检测升级
 			//msc_upload();

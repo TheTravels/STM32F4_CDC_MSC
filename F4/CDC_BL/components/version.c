@@ -42,7 +42,7 @@
 //static uint32_t swd=1;
 
 const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Version = {
-		.version = "1.2.3-hw1.0-HSH.BL",     // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
+		.version = "1.2.4-hw1.0-HSH.BL",     // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
 		//.model = "52",                       // Device Model,eg: "0A0"
 		.model = "zdeps",                    // zdeps 对应正德友邦,表示所有设备都去下载 "zdeps.Ini"文件
 		.author = "Merafour",                // Developers
@@ -61,8 +61,10 @@ const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Ve
 				.swd = 0,                    // 关闭调试,这里仅设置读保护
 				.vbus = 0,                   // VBUS 逻辑电平,未使用
 				.led = 1,                    // LED 逻辑电平,这里为使用
-				//.debug = EMB_DEBUG_UART3,    // Debug out UART3
-				.debug = EMB_DEBUG_NONE,     // 无调试信息
+				//.debug = EMB_DEBUG_UART3,  // Debug out UART3
+				//.debug = EMB_DEBUG_NONE,   // 无调试信息
+				//.debug = EMB_DEBUG_CDC,
+				.debug = EMB_DEBUG_NONE,
 				.sn = 1,                     // 0:2 place ; 1:3 place
 		},
 		.reserve1 = 0x55,

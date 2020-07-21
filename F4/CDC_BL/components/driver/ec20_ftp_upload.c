@@ -276,6 +276,7 @@ int EC20_FTP_Upload(const char hardware[], const char SN[], const char ftp[], co
         //resp=FTP_DownLoad_RAM(&_ec20_ofps, "EPS418", "0A0CK90N41.Ini", ini_save_seek);
         resp=FTP_DownLoad_RAM(&_ec20_ofps, hardware, sn1, ini_save_seek);
         memset(ver, 0, sizeof(ver));
+        //app_debug("\r\n[%s-%d] ini_data[%s] \r\n", __func__, __LINE__, ini_data);
         // "$hardware/Ver.Ini"
         if(EC20_RESP_OK!=resp)   // "A108/Ver.Ini"
         {
@@ -321,21 +322,13 @@ sn_ini:
             Ini._dsize = strlen(Ini.text);
             //Ini_get_field(&Ini, fw_name, "23", "*", _sn);
             Ini_get_field(&Ini, fw_name, sn2, "\n", ver);
-            if('-'!=ver[0])  // 23=v2.1.0
+            //app_debug("\r\n[%s-%d] ver[%s] \r\n", __func__, __LINE__, ver);
+            // 无记录
+            if('\n'==ver[0]) goto sn_ini;
+            // 版本必须是字母开头
+            else if( (('a'<=ver[0]) && ('z'>=ver[0])) || (('A'<=ver[0]) && ('Z'>=ver[0])) )  // 23=v2.1.0
             {
             	download_firmware(&_ec20_ofps, hardware, ver);
-            }
-            else if('-'!=ver[0])  // 23=-v2.1.0
-            {
-            	;
-            }
-            else //
-            {
-            	// 号段文件不识别键值对 VER
-            	goto sn_ini;
-            	//memset(ver, 0, sizeof(ver));
-            	//Ini_get_field(&Ini, fw_name, fw_key_ver, "-", ver);
-            	//if('-'!=ver[0]) download_firmware(&_ec20_ofps, hardware, ver);
             }
             at_print("AT+QFTPCLOSE\r\n");
             //at_get_resps("\r\nOK", NULL, NULL, NULL, NULL, 100,1500);
