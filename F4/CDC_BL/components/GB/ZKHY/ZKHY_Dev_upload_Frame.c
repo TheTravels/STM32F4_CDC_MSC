@@ -35,7 +35,8 @@
 #define  ZKHY_emb_iteration       32
 
 static const uint32_t def_key1[4]={0x01020304, 0x05060708, 0x090A0B0C, 0x0D0E0F10};
-static uint32_t pc_key2[4]={0x010DCF04, 0x0506BEA8, 0x09033B0C, 0x0D555F10};  // 随机密钥
+//static uint32_t pc_key2[4]={0x010DCF04, 0x0506BEA8, 0x09033B0C, 0x0D555F10};  // 随机密钥
+static uint32_t pc_key2[4]={0x00000000, 0x00000000, 0x00000000, 0x00000000};  // 随机密钥
 static uint32_t emb_key3[4]={0x010DCF04, 0x0506BEA8, 0x09033B0C, 0x0D555F10};   // 子密钥，通常位对方发过来的密钥
 
 #ifdef ZKHY_DEV_FRAME_MASTER
@@ -927,6 +928,7 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     		if(0x7F!=_sync->flag[i])
     		{
     			//app_debug("[%s--%d] match fail! %d 0x%02X ...\r\n", __func__, __LINE__, i, _sync->flag[i]);
+    			memset(pc_key2, 0x00, sizeof(pc_key2));
     			suc = ZKHY_RESP_ERR_CMD;
     			break;//return ZKHY_RESP_ERR_CMD;
     		}
@@ -1016,6 +1018,13 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     		ZKHY_frame_upload_init(_frame, ZKHY_EMB_WRITEA);
     		_writea->MemNum = Write.MemNum;
     		app_debug("[%s--%d] Write.MemNum:%d\r\n", __func__, __LINE__, Write.MemNum);
+        	if(0x00000000==pc_key2[0])
+        	{
+    			_writea->volume = 0;
+    			_writea->status = 4;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
+    			_writea->write = 0;
+    			break;
+        	}
     		switch(Write.MemNum)
     		{
     		case EMB_STORE_FLASH:     // 读写入固件

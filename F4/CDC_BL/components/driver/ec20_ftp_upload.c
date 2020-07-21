@@ -281,8 +281,12 @@ int EC20_FTP_Upload(const char hardware[], const char SN[], const char ftp[], co
         {
 sn_ini:
             memset(ini_data, 0, sizeof(ini_data));
+            memset(sn1, 0, sizeof(sn1));
+            strcpy(&sn1[0], Emb_Version.model);
+            strcpy(&sn1[strlen(sn1)], ".Ini");
             ini_size=0;
-        	resp=FTP_DownLoad_RAM(&_ec20_ofps, hardware, "Ver.Ini", ini_save_seek);
+        	//resp=FTP_DownLoad_RAM(&_ec20_ofps, hardware, "Ver.Ini", ini_save_seek);
+            resp=FTP_DownLoad_RAM(&_ec20_ofps, hardware, sn1, ini_save_seek);
         	if(EC20_RESP_OK==resp)
         	{
         		/**

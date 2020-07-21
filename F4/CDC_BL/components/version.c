@@ -42,8 +42,9 @@
 //static uint32_t swd=1;
 
 const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Version = {
-		.version = "1.1.17-hw1.0-HSH.BL",    // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
-		.model = "52",                       // Device Model,eg: "0A0"
+		.version = "1.2.0-hw1.0-HSH.BL",     // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
+		//.model = "52",                       // Device Model,eg: "0A0"
+		.model = "zdeps",                    // zdeps 对应正德友邦,表示所有设备都去下载 "zdeps.Ini"文件
 		.author = "Merafour",                // Developers
 		.hardware = "A108",                  // Board name
 		.mtext = {0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},      // boot signature Key
