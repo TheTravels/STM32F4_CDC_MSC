@@ -27,7 +27,7 @@ static const char fw_key_bin[] = "BIN";
 static const char fw_key_ver[] = "VER";
 
 // 对齐
-static char __attribute__ ((aligned (4))) ini_data[1024*50];
+static char __attribute__ ((aligned (4))) ini_data[1024*20];
 static int ini_size=0;
 static void ini_save_seek(const int total, const uint32_t _seek, const char* const data, const uint16_t block)
 {

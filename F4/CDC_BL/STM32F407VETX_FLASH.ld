@@ -178,7 +178,7 @@ SECTIONS
     . = ALIGN(4);
     _ccm_edata = .;        /* define a global symbol at data end */
     
-  } >CCMRAM AT> FLASH
+  } >CCMRAM 
 
   /* Remove information from the compiler libraries */
   /DISCARD/ :

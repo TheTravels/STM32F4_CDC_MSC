@@ -873,7 +873,8 @@ int ZKHY_Slave_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum Z
 }
 #endif
 // 用于返回数据
-static uint8_t _ccm bl_buf[1024*4];
+//static uint8_t _ccm bl_buf[1024*4];
+static uint8_t __attribute__ ((aligned (4))) bl_buf[1024*4];
 uint8_t read_uid(uint8_t uid[])
 {
 	const char* const id_addr = (const char*)0x1FFF7A10;
