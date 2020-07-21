@@ -25,6 +25,8 @@
 #include "version.h"
 
 /* USER CODE BEGIN 0 */
+extern uint8_t vbus_connect;
+
 cache_queue UART1_RX_cache;
 cache_queue UART2_RX_cache;
 cache_queue UART3_RX_cache;
@@ -162,7 +164,7 @@ int app_debug(const char *__format, ...)
 	if(EMB_DEBUG_UART1==Emb_Version.cfg.debug) uart1_send((uint8_t*)debug_text, strlen(debug_text));
 	else if(EMB_DEBUG_UART2==Emb_Version.cfg.debug) uart2_send((uint8_t*)debug_text, strlen(debug_text));
 	else if(EMB_DEBUG_UART3==Emb_Version.cfg.debug) uart3_send((uint8_t*)debug_text, strlen(debug_text));
-	else if(EMB_DEBUG_CDC==Emb_Version.cfg.debug) cdc_send((uint8_t*)debug_text, strlen(debug_text));
+	else if((1==vbus_connect) && (EMB_DEBUG_CDC==Emb_Version.cfg.debug)) cdc_send((uint8_t*)debug_text, strlen(debug_text));
 	//_serial_debug->write(_serial_debug, 0, "\r\n", 2);
 	return 0;
 }
