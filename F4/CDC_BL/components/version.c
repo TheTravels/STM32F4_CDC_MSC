@@ -58,7 +58,7 @@ const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Ve
 		.vbus = 0xA9,                        // VBUS Port && Pin, PA9
 		.led  = 0xDD,                        // LED Port && Pin,  PD13
 		.cfg = {
-				.swd = 1,                    // 关闭调试,这里仅设置读保护
+				.swd = 0,                    // 关闭调试,这里仅设置读保护
 				.vbus = 0,                   // VBUS 逻辑电平,未使用
 				.led = 1,                    // LED 逻辑电平,这里为使用
 				//.debug = EMB_DEBUG_UART3,  // Debug out UART3
