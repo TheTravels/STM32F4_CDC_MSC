@@ -611,10 +611,11 @@ static void erase_chip(const uint32_t addr, const uint8_t wlen)
 	Flash_EnableWriteProtection();
 #endif
 	// jump to app
-	bl_entry();
-	NVIC_SystemReset();
+	//bl_entry();
+	//NVIC_SystemReset();
 	while(1)
 	{
+		NVIC_SystemReset();
 		asm("mov r0,r0");
 	}
 }
