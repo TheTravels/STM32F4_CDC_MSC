@@ -874,7 +874,8 @@ int ZKHY_Slave_Frame_upload(struct ZKHY_Frame_upload* const _frame, const enum Z
 #endif
 // 用于返回数据
 //static uint8_t _ccm bl_buf[1024*4];
-static uint32_t bl_buf[1024];
+//static uint32_t bl_buf[1024];
+//static uint8_t bl_buf[1024*4];
 uint8_t read_uid(uint8_t uid[])
 {
 	const char* const id_addr = (const char*)0x1FFF7A10;
@@ -890,6 +891,7 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
 	int enlen;
     int delen;
     int suc;
+    uint8_t bl_buf[1024*4];
     //uint8_t status;                 // 状态码
     memset(_frame, 0, sizeof(struct ZKHY_Frame_upload));
     delen = ZKHY_DeFrame_upload(_frame, data, _dsize);
