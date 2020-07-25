@@ -1,0 +1,104 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.h
+  * @brief          : Header for main.c file.
+  *                   This file contains the common defines of the application.
+  ******************************************************************************
+  * @attention
+  *
+  * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
+  * All rights reserved.</center></h2>
+  *
+  * This software component is licensed by ST under Ultimate Liberty license
+  * SLA0044, the "License"; You may not use this file except in compliance with
+  * the License. You may obtain a copy of the License at:
+  *                             www.st.com/SLA0044
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __MAIN_H
+#define __MAIN_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Includes ------------------------------------------------------------------*/
+#include "stm32f4xx_hal.h"
+#include "stm32f4xx_ll_rcc.h"
+#include "stm32f4xx_ll_bus.h"
+#include "stm32f4xx_ll_system.h"
+#include "stm32f4xx_ll_exti.h"
+#include "stm32f4xx_ll_cortex.h"
+#include "stm32f4xx_ll_utils.h"
+#include "stm32f4xx_ll_pwr.h"
+#include "stm32f4xx_ll_dma.h"
+#include "stm32f4xx_ll_usart.h"
+#include "stm32f4xx.h"
+#include "stm32f4xx_ll_gpio.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+/* Exported types ------------------------------------------------------------*/
+/* USER CODE BEGIN ET */
+#define _ccm __attribute__((unused, section(".ccm")))
+/* USER CODE END ET */
+
+/* Exported constants --------------------------------------------------------*/
+/* USER CODE BEGIN EC */
+enum Interface_uart{
+	INTER_UART_NONE  = 0x00,
+	INTER_UART1      = 0x01,
+	INTER_UART2      = 0x02,
+	INTER_UART3      = 0x03,
+	INTER_UART_CDC   = 0x04,
+};
+
+extern enum Interface_uart inter_uart;
+extern uint8_t vbus_high_count;
+extern uint8_t vbus_low_count;
+extern uint8_t vbus_connect;
+extern uint32_t led_tick;
+/* USER CODE END EC */
+
+/* Exported macro ------------------------------------------------------------*/
+/* USER CODE BEGIN EM */
+
+/* USER CODE END EM */
+
+/* Exported functions prototypes ---------------------------------------------*/
+void Error_Handler(void);
+
+/* USER CODE BEGIN EFP */
+
+/* USER CODE END EFP */
+
+/* Private defines -----------------------------------------------------------*/
+#define SD_NCD_Pin LL_GPIO_PIN_0
+#define SD_NCD_GPIO_Port GPIOC
+#define LED_Pin LL_GPIO_PIN_13
+#define LED_GPIO_Port GPIOD
+#define VBUS_Pin LL_GPIO_PIN_9
+#define VBUS_GPIO_Port GPIOA
+#define PWR_EN_GPS_Pin LL_GPIO_PIN_7
+#define PWR_EN_GPS_GPIO_Port GPIOD
+#define PWR_EN_4G_Pin LL_GPIO_PIN_8
+#define PWR_EN_4G_GPIO_Port GPIOB
+/* USER CODE BEGIN Private defines */
+
+/* USER CODE END Private defines */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __MAIN_H */
+
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
