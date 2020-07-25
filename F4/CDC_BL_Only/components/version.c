@@ -47,7 +47,7 @@
 //static uint32_t swd=1;
 
 const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Version = {
-		.version = "1.3.1-hw1.0-HSH.BL",     // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
+		.version = "1.3.2-hw1.0-HSH.BL",     // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
 		//.model = "52",                       // Device Model,eg: "0A0"
 		.model = "zdeps",                    // zdeps 对应正德友邦,表示所有设备都去下载 "zdeps.Ini"文件
 		.author = "Merafour",                // Developers
@@ -63,7 +63,7 @@ const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Ve
 		.vbus = 0xA9,                        // VBUS Port && Pin, PA9
 		.led  = 0xDD,                        // LED Port && Pin,  PD13
 		.cfg = {
-				.swd = 1,
+				.swd = 0,
 				.vbus = 0,
 				.led = 1,
 				//.debug = EMB_DEBUG_UART3,    // Debug out UART3

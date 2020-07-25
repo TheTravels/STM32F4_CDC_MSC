@@ -321,7 +321,10 @@ sn_ini:
             Ini._dsize = strlen(Ini.text);
             //Ini_get_field(&Ini, fw_name, "23", "*", _sn);
             Ini_get_field(&Ini, fw_name, sn2, "\n", ver);
+            //app_debug("\r\n[%s-%d] ver[%s] \r\n", __func__, __LINE__, ver);
+            // 无记录
             if('\n'==ver[0]) goto sn_ini;
+            // 版本必须是字母开头
             else if( (('a'<=ver[0]) && ('z'>=ver[0])) || (('A'<=ver[0]) && ('Z'>=ver[0])) )  // 23=v2.1.0
             {
             	download_firmware(&_ec20_ofps, hardware, ver);
