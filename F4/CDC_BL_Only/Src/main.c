@@ -174,8 +174,8 @@ int main(void)
 	MX_FATFS_Init();
 	/* USER CODE BEGIN 2 */
 	led_tick = 100;
-	USART1_Init(115200);
-	USART2_Init(115200);
+//	USART1_Init(115200);
+//	USART2_Init(115200);
 	USART3_Init(115200);
 	//EC20_Test();
 	//EC20_FTP_Test();

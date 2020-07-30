@@ -31,8 +31,8 @@ extern "C" {
 /* USER CODE BEGIN Prototypes */
 
 extern cache_queue UART1_RX_cache;
-extern cache_queue UART2_RX_cache;
-extern cache_queue UART3_RX_cache;
+//extern cache_queue UART2_RX_cache;
+//extern cache_queue UART3_RX_cache;
 extern cache_queue cdc_RX_cache;
 
 static __inline void add_queue_uart1(const uint8_t _byte)
@@ -48,13 +48,13 @@ static __inline void add_queue_uart1(const uint8_t _byte)
 static __inline void add_queue_uart2(const uint8_t _byte)
 {
 	//__asm("CPSID  I");
-	macro_queue_write(_byte,UART2_RX_cache);
+	//macro_queue_write(_byte,UART2_RX_cache);
 	//__asm("CPSIE  I");
 }
 static __inline void add_queue_uart3(const uint8_t _byte)
 {
 	//__asm("CPSID  I");
-	macro_queue_write(_byte,UART3_RX_cache);
+	//macro_queue_write(_byte,UART3_RX_cache);
 	//__asm("CPSIE  I");
 }
 static __inline void add_queue_cdc(const uint8_t _byte)

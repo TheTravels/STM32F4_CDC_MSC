@@ -97,6 +97,25 @@ void vbus_poll(const uint32_t _tick)
 // 对芯片签名, 签名长度 32B
 extern uint8_t read_uid(uint8_t uid[]);
 //static uint8_t send_buf[256];
+static const uint32_t signApp_key[4]={0x01020304, 0x05060708, 0x090A0B0C, 0x0D0E0F10};
+void signApp(upload_Emb_Arg &Emb_Arg)
+{
+    int i;
+    char _sn[64];
+    uint32_t _key[4];
+    const uint32_t* const _id = (const uint32_t*)mcu_id;
+    QString_to_char(SN, _sn, sizeof(_sn));
+    for(int i=0; i<8; i++) Emb_Arg.signApp[i] = _id[i];
+    tea_encrypt(Emb_Arg.signApp, sizeof(Emb_Arg.signApp), signApp_key, 128);
+    // 迭代加密,将加密加过代入新一轮加密,增加解密复杂度
+    for(i=0; i<4; i++) _key[i] = Emb_Arg.signApp[i]+_id[i];
+    for(i=0; i<8; i++) Emb_Arg.signApp[i] = Emb_Arg.signApp[i]^(_key[i>>1]);
+    tea_encrypt(Emb_Arg.signApp, sizeof(Emb_Arg.signApp), _key, 128);
+
+    app.debug("[%s-%d] Emb_Arg.signApp: \r\n", __func__, __LINE__);
+    for(i=0; i<8; i++) app.debug("0x%08X ", Emb_Arg.signApp[i]);
+    app.debug("[%s-%d] ------- End ------- \r\n", __func__, __LINE__);
+}
 uint32_t sign_flag = 0;
 static inline uint32_t sign_chip(uint32_t sign[8])
 {
@@ -106,7 +125,7 @@ static inline uint32_t sign_chip(uint32_t sign[8])
 	uint32_t crc16 = 0;
 	uint32_t crc;
 	//uint32_t addr = (uint32_t)&bl_entry;
-	uint32_t addr = (uint32_t)0x08003658;
+	uint32_t addr = (uint32_t)0x080035a4;
 	const uint32_t* flash = (const uint32_t*)0x08000400;
 	const uint32_t key[4]={0x89480304, 0x60670708, 0x090A0B0C, 0x68270F10};
 	const uint16_t emb_iteration = 64;
@@ -238,7 +257,7 @@ int main(void)
 	app_debug("[%s--%d] HAL_TIMEOUT  = 0x03U, \r\n", __func__, __LINE__);
 	app_debug("[%s--%d] FLASH_Erase[0x%08X-0x%08X]:%d\r\n", __func__, __LINE__, 0x08000000, 0x08000FFF, FLASH_Erase(0x08000000, 0x08000FFF));
 #endif
-	//verify_chip();
+	verify_chip();
 	//EC20_Test();
   /* USER CODE END 2 */
 

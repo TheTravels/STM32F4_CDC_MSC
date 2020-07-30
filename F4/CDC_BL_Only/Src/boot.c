@@ -628,7 +628,7 @@ void __attribute__((unused, section(".sign_chip"))) first_sign_chip(void)
 	addr = addr-(addr&0x03);  // 对齐
 	// 延时加密,烧录器会设置校验,若代码执行加密更改了芯片中的数据将导致代码校验失败,
 	// 故此处延时为延缓加密进程,已让烧录器正常校验
-	HAL_Delay(500);
+	HAL_Delay(100);
 	// 签名
 	crc = sign_chip(sign);
 	// 写入 CRC

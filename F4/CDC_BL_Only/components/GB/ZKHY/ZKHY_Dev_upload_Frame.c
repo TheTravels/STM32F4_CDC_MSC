@@ -1069,7 +1069,7 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     			_writea->volume = ParamTable_Size();
     			break;
     		case EMB_STORE_UART:  // 读串口, seek为串口号
-    			if(1==Write.seek)  // UART1
+    			/*if(1==Write.seek)  // UART1
     			{
     				_writea->status = 0;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
     				_writea->write = uart1_send(Write.data, Write.block);
@@ -1087,7 +1087,7 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     				_writea->write = uart3_send(Write.data, Write.block);
     				_writea->volume = _writea->write;
     			}
-    			else
+    			else*/
     			{
     				_writea->status = 2;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
     				_writea->write = 0;
@@ -1162,7 +1162,7 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     			break;
     		case EMB_STORE_UART:  // 读串口, seek为串口号
     			_reada->seek = Read.seek;
-    			if(1==Read.seek)  // UART1
+    			/*if(1==Read.seek)  // UART1
     			{
     				_reada->status = 0;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
     				_reada->block = uart1_read(_reada->data, Read.block);
@@ -1180,7 +1180,7 @@ int ZKHY_Slave_unFrame_upload(struct ZKHY_Frame_upload* const _frame, const  uin
     				_reada->block = uart3_read(_reada->data, Read.block);
     				_reada->volume = _reada->block;
     			}
-    			else
+    			else*/
     			{
     				_reada->status = 2;   // 读取状态：0成功、1读取中、2存储区不支持、3参数错误、4其它错误
     				_reada->block = 0;
