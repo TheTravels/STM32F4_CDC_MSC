@@ -100,6 +100,8 @@ uint8_t vbus_low_count=0;
 uint8_t vbus_connect=0;
 uint32_t led_tick = 0;
 extern void bl_entry(void);
+#define  VBUS_HOLD_HIGH_TIME     100
+#define  VBUS_HOLD_Low_TIME      200
 
 void vbus_poll(const uint32_t _tick)
 {
@@ -107,21 +109,26 @@ void vbus_poll(const uint32_t _tick)
 	if(gpio&VBUS_Pin)
 	{
 		vbus_high_count++;
-		if(vbus_high_count>200) vbus_high_count = 200;
-		vbus_low_count=0;
+		if(vbus_high_count>VBUS_HOLD_HIGH_TIME)
+		{
+			vbus_high_count = VBUS_HOLD_HIGH_TIME;
+			vbus_low_count=0;
+		}
 	}
 	else
 	{
-		vbus_high_count=0;
 		vbus_low_count++;
-		if(vbus_low_count>200) vbus_low_count = 200;
+		if(vbus_low_count>VBUS_HOLD_Low_TIME)
+		{
+			vbus_low_count = VBUS_HOLD_Low_TIME;
+			vbus_high_count=0;
+		}
 	}
-	if((0==vbus_connect) && (vbus_high_count>100)) // usb connect
+	if((0==vbus_connect) && (vbus_high_count>=(VBUS_HOLD_HIGH_TIME>>1))) // usb connect
 	{
 		vbus_connect = 1;
-//		MX_USB_DEVICE_Init();
 	}
-	if((1==vbus_connect) && (vbus_low_count>100)) // usb disconnect
+	if((1==vbus_connect) && (vbus_low_count>=VBUS_HOLD_Low_TIME)) // usb disconnect
 	{
 		vbus_connect = 0;
 	}
@@ -680,6 +687,7 @@ void bl_entry(void)
 	int bl_len;
 	//uint32_t signApp[8];
 	/* Initialize all configured peripherals */
+	//USB_DeInit();
 	MX_GPIO_Init();
 	//MX_USB_DEVICE_Init();
 	//MX_SDIO_SD_Init();
@@ -695,7 +703,7 @@ void bl_entry(void)
 	//SD_initialize(0);
 	//fs_test();
 	//fs_test_sdio();
-	MX_USB_DEVICE_Init();
+	//MX_USB_DEVICE_Init();
 	//SHA1(NULL, "Hello", 5); // -Os Optimize code, add code 4K
 	LL_GPIO_ResetOutputPin(GPIOD, LED_Pin);
 	//fs_test(); // 格式化 Flash
@@ -715,7 +723,7 @@ void bl_entry(void)
 #endif
 	if(1!=Emb_Version.cfg.swd) Flash_EnableReadProtection();
 	// 检测是否需要升级
-	for(bl_len=0; bl_len<100; bl_len++)
+	for(bl_len=0; bl_len<20; bl_len++)
 	{
 		HAL_Delay(10);
 		//if((0==vbus_connect) && (vbus_high_count>100)) // usb connect
@@ -812,6 +820,8 @@ void bl_entry(void)
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
+	HAL_Delay(1000);
+	MX_USB_DEVICE_Init();
 	while (1)
 	{
 		/*if((0==vbus_connect) && (vbus_high_count>100)) // usb connect
@@ -819,7 +829,7 @@ void bl_entry(void)
 			vbus_connect = 1;
 			MX_USB_DEVICE_Init();
 		}*/
-		if((1==vbus_connect) && (vbus_low_count>100)) // usb disconnect
+		//if((1==vbus_connect) && (vbus_low_count>100)) // usb disconnect
 		if(0==vbus_connect)
 		{
 			//vbus_connect = 0;

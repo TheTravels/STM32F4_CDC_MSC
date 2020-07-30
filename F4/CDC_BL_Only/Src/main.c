@@ -117,6 +117,7 @@ static const char Param_key_user[] = "user";
 static const char Param_key_passwd[] = "pass";
 //static const char Param_key_time[] = "Time";
 extern void verify_chip(void);
+extern void USB_DeInit(void);
 
 /* USER CODE END 0 */
 
@@ -154,6 +155,7 @@ int main(void)
 	SystemClock_Config();
 
 	/* USER CODE BEGIN SysInit */
+	USB_DeInit();
 	uartx_queue_init();
 	//USART3_Init(115200);
 	//jump_to_app();
@@ -174,8 +176,8 @@ int main(void)
 	MX_FATFS_Init();
 	/* USER CODE BEGIN 2 */
 	led_tick = 100;
-//	USART1_Init(115200);
-//	USART2_Init(115200);
+	USART1_Init(115200);
+	USART2_Init(115200);
 	USART3_Init(115200);
 	//EC20_Test();
 	//EC20_FTP_Test();

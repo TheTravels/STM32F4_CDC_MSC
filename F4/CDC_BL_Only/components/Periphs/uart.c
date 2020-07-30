@@ -28,8 +28,8 @@
 extern uint8_t vbus_connect;
 
 cache_queue UART1_RX_cache;
-//cache_queue UART2_RX_cache;
-//cache_queue UART3_RX_cache;
+cache_queue UART2_RX_cache;
+cache_queue UART3_RX_cache;
 cache_queue cdc_RX_cache;
 
 //__STATIC_INLINE
@@ -77,8 +77,8 @@ static int usart_send(USART_TypeDef *USARTx, const uint8_t data[], const uint32_
 void uartx_queue_init(void)
 {
     init_queue(&UART1_RX_cache);
-//    init_queue(&UART2_RX_cache);
-//    init_queue(&UART3_RX_cache);
+    init_queue(&UART2_RX_cache);
+    init_queue(&UART3_RX_cache);
     init_queue(&cdc_RX_cache);
 }
 
@@ -86,7 +86,6 @@ int uart1_send(const uint8_t data[], const uint32_t _size)
 {
 	return usart_send(USART1, data, _size);
 }
-
 int uart1_read(uint8_t buf[], const uint32_t _size)
 {
 	//return cache_queue_reads(&Debug_RX_cache, buf, _size);
@@ -104,7 +103,6 @@ int uart1_isempty(void)
 {
 	return cache_queue_isempty(&UART1_RX_cache);
 }
-#if 0
 int uart2_send(const uint8_t data[], const uint32_t _size)
 {
 	return usart_send(USART2, data, _size);
@@ -118,12 +116,11 @@ int uart2_read(uint8_t buf[], const uint32_t _size)
 	//__asm("CPSIE  I");
 	return index;
 }
-#endif
 int uart3_send(const uint8_t data[], const uint32_t _size)
 {
 	return usart_send(USART3, data, _size);
 }
-/*int uart3_read(uint8_t buf[], const uint32_t _size)
+int uart3_read(uint8_t buf[], const uint32_t _size)
 {
 	//return cache_queue_reads(&Debug_RX_cache, buf, _size);
 	uint16_t index;
@@ -131,7 +128,7 @@ int uart3_send(const uint8_t data[], const uint32_t _size)
 	macro_queue_read(index, buf, _size, UART3_RX_cache);
 	//__asm("CPSIE  I");
 	return index;
-}*/
+}
 #include "usb_device.h"
 extern uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
 int cdc_send(const uint8_t data[], const uint32_t _size)
@@ -164,9 +161,9 @@ int app_debug(const char *__format, ...)
 	//vsprintf(debug_text, __format, ap);
 	vsnprintf(debug_text, sizeof(debug_text)-1, __format, ap);
 	va_end(ap);
-	/*if(EMB_DEBUG_UART1==Emb_Version.cfg.debug) uart1_send((uint8_t*)debug_text, strlen(debug_text));
+	if(EMB_DEBUG_UART1==Emb_Version.cfg.debug) uart1_send((uint8_t*)debug_text, strlen(debug_text));
 	else if(EMB_DEBUG_UART2==Emb_Version.cfg.debug) uart2_send((uint8_t*)debug_text, strlen(debug_text));
-	else */if(EMB_DEBUG_UART3==Emb_Version.cfg.debug) uart3_send((uint8_t*)debug_text, strlen(debug_text));
+	else if(EMB_DEBUG_UART3==Emb_Version.cfg.debug) uart3_send((uint8_t*)debug_text, strlen(debug_text));
 	else if((1==vbus_connect) && (EMB_DEBUG_CDC==Emb_Version.cfg.debug)) cdc_send((uint8_t*)debug_text, strlen(debug_text));
 	//_serial_debug->write(_serial_debug, 0, "\r\n", 2);
 	return 0;
@@ -298,21 +295,21 @@ void USART3_Init(const uint32_t BaudRate)
   LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USART3 interrupt Init */
-  //NVIC_SetPriority(USART3_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
-  //NVIC_EnableIRQ(USART3_IRQn);
+  NVIC_SetPriority(USART3_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),0, 0));
+  NVIC_EnableIRQ(USART3_IRQn);
 
   USART_InitStruct.BaudRate = BaudRate;
   USART_InitStruct.DataWidth = LL_USART_DATAWIDTH_8B;
   USART_InitStruct.StopBits = LL_USART_STOPBITS_1;
   USART_InitStruct.Parity = LL_USART_PARITY_NONE;
-  USART_InitStruct.TransferDirection = LL_USART_DIRECTION_TX;//LL_USART_DIRECTION_TX_RX;
+  USART_InitStruct.TransferDirection = LL_USART_DIRECTION_TX_RX;
   USART_InitStruct.HardwareFlowControl = LL_USART_HWCONTROL_NONE;
   USART_InitStruct.OverSampling = LL_USART_OVERSAMPLING_16;
   LL_USART_Init(USART3, &USART_InitStruct);
   LL_USART_ConfigAsyncMode(USART3);
   LL_USART_Enable(USART3);
-  //LL_USART_EnableIT_RXNE(USART3);
-  //LL_USART_EnableIT_ERROR(USART3);
+  LL_USART_EnableIT_RXNE(USART3);
+  LL_USART_EnableIT_ERROR(USART3);
 
 }
 

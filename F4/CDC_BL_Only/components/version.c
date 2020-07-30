@@ -14,6 +14,7 @@
 /********************************** ¸üÐÂ¼ÇÂ¼ **********************************
 * V1.3.0             : ---- 2020.07.25
 *                    : 1. 408一代二代硬件偶可以使用,压缩内存占用,解决由于内存消耗过大导致的串口无法打开问题;
+*                    : 2. 删除不必要的资源占用;
 *******************************************************************************/
 
 // define version data section
@@ -47,7 +48,7 @@
 //static uint32_t swd=1;
 
 const struct Emb_Device_Version  _version __attribute__ ((aligned (512))) Emb_Version = {
-		.version = "1.3.4-hw1.0-HSH.BL",     // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
+		.version = "1.3.5-hw1.0-HSH.BL",     // Boot Version, eg:"2.1.10-hw2.0-HSH.Gen"
 		//.model = "52",                       // Device Model,eg: "0A0"
 		.model = "zdeps",                    // zdeps 对应正德友邦,表示所有设备都去下载 "zdeps.Ini"文件
 		.author = "Merafour",                // Developers
